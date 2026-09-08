@@ -17,7 +17,7 @@ from app.seed import DEFAULT_SOURCE_PATH, seed_database
 TEST_URI = os.environ.get("MONGODB_TEST_URI")
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def api_db() -> AsyncIterator[tuple[AsyncMongoClient, str]]:
     if TEST_URI is None:
         pytest.skip("MONGODB_TEST_URI not set")
@@ -33,7 +33,7 @@ async def api_db() -> AsyncIterator[tuple[AsyncMongoClient, str]]:
     await client.close()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def api_client(api_db: tuple[AsyncMongoClient, str]) -> AsyncIterator[httpx.AsyncClient]:
     _client, db_name = api_db
     settings = Settings(mongodb_uri=TEST_URI, mongodb_db=db_name)  # type: ignore[arg-type]

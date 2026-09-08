@@ -8,9 +8,10 @@ authoritative. Read them first in every new session.
 ## Project status
 
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
-- **Phase 2 — FastAPI Filtering/Analytics API: COMPLETE** (implemented and verified 2026-09-08).
-- Phase 0: **APPROVED**. Phase 1: **COMPLETE**. Phase 2: **COMPLETE**.
-- Phase 3 (Frontend Design System and Dashboard Shell) awaits explicit user approval.
+- **Phase 2 — FastAPI Filtering/Analytics API: IMPLEMENTED + VERIFIED against running MongoDB
+  2026-09-08** (full suite 113 passed, live smoke matrix green). Phase 2 approval still pending.
+- Phase 0: **APPROVED**. Phase 1: **COMPLETE**. Phase 2: **COMPLETE, awaiting approval**.
+- Phase 3 (Frontend Design System and Dashboard Shell) is NOT authorized. Do not begin Phase 3.
 
 ## Source dataset
 
@@ -58,36 +59,72 @@ authoritative. Read them first in every new session.
     SORTABLE_FIELDS, RECORD_ID_PATTERN, UNAVAILABLE_DIMENSIONS), `app/schemas.py` (all typed response models),
     `app/routers/{meta,facets,overview,records}.py`.
   - Added `pyright` to dev dependencies; pyright 0 errors achieved.
+- 2026-09-08 (Phase 2 verification against running MongoDB — real bugs found and fixed):
+  - pytest-asyncio 0.26 runs session-scoped async fixtures and async tests on different event
+    loops by default; `AsyncMongoClient` binds to its creation loop, so all 42 integration
+    tests failed with `RuntimeError: Cannot use AsyncMongoClient in different event loop`.
+    Fixed by pinning `asyncio_default_fixture_loop_scope = "session"` and
+    `asyncio_default_test_loop_scope = "session"` in `pyproject.toml` plus explicit
+    `loop_scope="session"` on `api_db`/`api_client` (session) and `test_db` (function).
+  - Landscape dominance bug: `landscape_dominance` let a null sector win when null was the most
+    frequent sector for a topic (e.g. `growth`: 40 null vs 4 Government returned
+    `dominant_sector=None`). Architecture §7 specifies most-frequent *non-null* sector, so the
+    pipeline now pre-filters `sector: {$ne: None}`; topics with no non-null sector still yield
+    `None` via the missing-key default in `services.py`.
+  - Facets zero-result test was wrong: with disjunctive faceting, `country=Atlantis` correctly
+    returns the unfiltered country list in the *country* facet (own filter excluded) while all
+    other dimensions are empty. Test updated to assert that scoped behavior.
+  - A stale Phase-1 uvicorn (health+ready only) was still bound to port 8000 from an earlier
+    session; killed it (PID 38516) before live smoke. Lesson: verify `/openapi.json` routes
+    before trusting a listening port.
+  - Docker Desktop daemon was stopped at session start (`sc.exe start` → Access denied, service
+    Manual); started the `Docker Desktop.exe` user process instead, daemon came up (v29.3.1),
+    `docker compose up -d mongo` → healthy.
+  - Seed terminology verified accurate: second seed reports `documents_processed: 1000`,
+    `documents_inserted: 0`, `documents_matched: 1000`, `documents_modified: 1000`
+    (ReplaceOne-upsert counters straight from `BulkWriteResult`; replacement always counts as
+    modified), `stale_documents_removed: 0`, `final_document_count: 1000`. No misleading
+    `documents_imported` metric exists; no rename needed.
   - Environment note (not a project change): the user's unrelated docker stack
     (`olist-analytics-blueprint`) occupies host ports 3000 and 5433. Our compose project is
     `insightscope` (mongo 27017 free). If 3000 is busy, Next picks 3001 and that origin must be
     added to `ALLOWED_ORIGINS` (documented in README troubleshooting).
 
-## Testing status (final Phase 2 run, 2026-09-08)
+## Testing status (Phase 2 verification run, 2026-09-08, Mongo UP)
 
-- Backend unit: **61 passed** (normalize, config, health/ready, filters/build_match, pagination
-  validation, record-id validation).
-- Backend integration (with `MONGODB_TEST_URI` + Mongo up): **30 passed** (overview, facets,
-  records, meta, error shapes). 8 integration tests skipped when Mongo is unavailable.
-- Backend without Mongo env: 61 passed, 8 skipped gracefully. Ruff format + check clean.
-- Pyright: **0 errors** across `app/` and `tests/`.
-- Frontend: `pnpm lint` clean, `pnpm typecheck` clean, `pnpm build` clean (static route).
-- DB: clean-volume seed → 1,000 docs; second seed → 1,000 docs / 0 removed; container restart
-  → data persists; `/ready` → `{"status":"ready","database":"connected","dataset":"seeded","document_count":1000}`.
-- Live smoke (when Docker available): uvicorn health 200, ready 200; representative API queries
-  (`/overview?topic=oil`, `/facets?topic=oil&country=...`, `/records?q=energy`, `/records/{id}`)
-  return verified correct aggregates; malformed id → 422; unknown id → 404; unavailable dimension
-  → 422; invalid range → 422.
+- Full backend suite with `MONGODB_TEST_URI=mongodb://localhost:27017`: **113 passed,
+  0 failed, 0 skipped, 0 errors — total 113. Mongo integration tests executed: YES.**
+- Ruff check: clean. Ruff format check: 33 files formatted. Pyright: **0 errors**.
+- Mongo pre-verification: container `healthy`; `insights.countDocuments()` = 1000;
+  `dataset_meta.current` exists with `source_sha256=f45b67f7…aeb1744`;
+  raw `jsondata.json` SHA-256 matches pinned value; indexes `_id_` + 11× `idx_*` present.
+- Live smoke (real uvicorn + Mongo, independent raw-JSON cross-checks all match):
+  health 200; ready 200 (seeded/1000); meta 200 (SHA match, city/swot false);
+  overview 1000; `topic=oil` 403; `topic=oil&topic=gas` 492 (OR proven);
+  `topic=oil&country=USA` 51 (AND proven); intensity 10–20 → 352; `q=energy` → 563;
+  `q=.*` → 0 (literal, not regex match-all); scoped facets exact-match raw expectations;
+  zero-result overview → count 0 + null averages (no fake zeros); zero-result records →
+  total 0/pages 0; bad range → 422 `invalid_range`; city/swot → 422
+  `unavailable_dimension`; page 2 → rows 25–49; page_size 101 → 422; asc/desc sorts ordered;
+  unsafe sort → 422 `invalid_sort`; record row-0 detail exact (no sha leak); malformed id →
+  422 `invalid_record_id`; unknown id → 404 `record_not_found`; `World`=131/`world`=1
+  distinct; years 2126:1/2200:1; intensity `not_specified`=38 = raw nulls (nulls never zero).
+- Mongo-outage probe (app pointed at closed port 59999): `/overview` → **503
+  `database_unavailable`**, `/ready` → 503. No fake empty analytics.
+- `/openapi.json`: all 7 Phase 2 routes + 29 typed schemas (+ FastAPI validation wrappers).
+- Frontend regression (no Phase 3 work): `pnpm lint` exit 0, `pnpm typecheck` exit 0,
+  `pnpm build` exit 0 (Next 16.3.3, 3 static pages).
+- Final integrity: raw SHA unchanged (`f45b67f7…aeb1744`), Mongo count 1000, no `.env`
+  created, no secrets, no junk files (stray `query` artifact removed pre-commit).
 
 ## Known failures / issues
 
-- Docker daemon stops between sessions; integration tests skip without `MONGODB_TEST_URI`.
-  Re-start Docker (`docker compose up -d mongo`) and re-run `MONGODB_TEST_URI=mongodb://localhost:27017 uv run pytest` to verify integration tests.
+- None. (Session-start Docker outage resolved by launching Docker Desktop user process.)
 
 ## Next allowed task
 
-- Await explicit user approval of Phase 2 → then Phase 3 (Frontend Design System and Dashboard Shell).
+- STOP. Await explicit user approval of Phase 2. Do NOT begin Phase 3.
 
 ## Last verified commit
 
-- Phase 2 API implementation commit. See `git log` for SHA.
+- Phase 2 verification commit (loop-scope fix + dominance fix + facet test fix). See `git log`.

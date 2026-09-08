@@ -118,8 +118,17 @@ class TestFacetsShape:
     async def test_zero_result_filters_produce_empty_facets(
         self, api_client: httpx.AsyncClient
     ) -> None:
+        # Scoped faceting: every dimension except the filtered one applies the
+        # country=Atlantis constraint (hence empty); the country dimension itself
+        # excludes its own filter, so it still shows the unfiltered country list.
+        records = normalized_records()
+        expected_countries = Counter(r["country"] for r in records if r["country"] is not None)
         response = await api_client.get("/api/v1/facets", params=[("country", "Atlantis")])
         assert response.status_code == 200
-        for dimension in response.json().values():
-            assert dimension["values"] == []
-            assert dimension["missing_count"] == 0
+        body = response.json()
+        for field, dimension in body.items():
+            if field == "country":
+                assert facet_values(dimension) == dict(expected_countries)
+            else:
+                assert dimension["values"] == []
+                assert dimension["missing_count"] == 0

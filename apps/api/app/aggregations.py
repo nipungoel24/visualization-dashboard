@@ -118,17 +118,10 @@ def build_overview_pipeline(match: dict[str, object]) -> list[dict[str, object]]
 
     facet["landscape"] = _named_group("topic", ("intensity", "likelihood", "relevance"))
     facet["landscape_dominance"] = [
-        {"$match": {"topic": {"$ne": None}}},
+        {"$match": {"topic": {"$ne": None}, "sector": {"$ne": None}}},
         {"$group": {"_id": {"topic": "$topic", "sector": "$sector"}, "n": {"$sum": 1}}},
-        {
-            "$project": {
-                "topic": "$_id.topic",
-                "sector": "$_id.sector",
-                "n": 1,
-                "is_null": {"$eq": ["$_id.sector", None]},
-            }
-        },
-        {"$sort": {"topic": 1, "n": -1, "is_null": 1, "sector": 1}},
+        {"$project": {"topic": "$_id.topic", "sector": "$_id.sector", "n": 1}},
+        {"$sort": {"topic": 1, "n": -1, "sector": 1}},
         {"$group": {"_id": "$topic", "dominant_sector": {"$first": "$sector"}}},
     ]
 

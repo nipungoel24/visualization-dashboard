@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest
+import pytest_asyncio
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
@@ -29,7 +30,7 @@ pytestmark = [
 ]
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(scope="function", loop_scope="session")
 async def test_db() -> AsyncIterator[tuple[AsyncMongoClient, str]]:
     if TEST_URI is None:
         pytest.skip("MONGODB_TEST_URI not set")
