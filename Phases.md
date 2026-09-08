@@ -63,26 +63,28 @@ approval. No auto-advancing.
 
 - **Objective**: Complete versioned backend per Architecture §5–7.
 - **In scope**: routers `health`, `ready`, `meta`, `facets`, `overview`, `records`,
-  `records/{id}`; `app/filters.py` (FilterSpec + whitelists + central `$match` builder);
-  `app/aggregations.py` (`$facet` overview + scoped facets); `app/schemas.py`; error handling
-  (central exception handlers, no stack traces to clients); CORS; request validation.
+  `records/{id}`; `app/filters.py` (FilterSpec + whitelists + central `$match` builder,
+  repeated-query-param parsing, range validation); `app/aggregations.py` (`$facet` overview
+  + scoped facets); `app/schemas.py`; `app/errors.py` (ApiError + exception handlers, no
+  stack traces to clients); CORS; request validation; Pyright type checking.
 - **Out of scope**: frontend integration, visualizations, deployment.
-- **Expected files**: `apps/api/app/{main,filters,aggregations,schemas}.py`,
+- **Expected files**: `apps/api/app/{main,errors,filters,aggregations,schemas}.py`,
   `apps/api/app/routers/{health,meta,facets,overview,records}.py`,
-  `apps/api/tests/unit/{test_filters,test_pagination,test_schemas,test_health}.py`,
-  `apps/api/tests/integration/{test_api_overview,test_api_records,test_api_facets,test_api_meta,test_seed_idempotency}.py`.
+  `apps/api/tests/unit/{test_filters,test_pagination,test_health}.py`,
+  `apps/api/tests/integration/{test_api_overview,test_api_records,test_api_facets,
+  test_api_meta,test_seed_idempotency}.py`.
 - **Implementation tasks**: filter builder + exhaustive unit tests; overview aggregation
-  sections; facets scoping; pagination/search/sort; health/ready semantics; integration tests
-  against Docker Mongo with a small deterministic fixture dataset.
+  sections; facets scoping; pagination/search/sort; health/ready semantics; error handling;
+  Pyright clean; integration tests against Docker Mongo with a small deterministic fixture dataset.
 - **Tests**: `$match` output for OR/AND/combined/range/empty cases; 422 on unknown
-  fields/operators/bad pagination; overview sections against fixture; facet scoping; records
-  404; meta availability flags (city/swot false).
+  fields/operators/bad pagination/unavailable dimensions/invalid ranges; overview sections
+  against fixture; facet scoping; records 404; meta availability flags (city/swot false);
+  error shapes; zero-result handling.
 - **Verification commands**: `uv run ruff format --check .`; `uv run ruff check .`;
-  `uv run pytest` (unit + integration with Mongo up); manual curl checks:
-  `/health`, `/ready`, `/meta`, `/facets?topics=oil`, `/overview?countries=India`,
-  `/records?page=2&pageSize=20`, combined-filter query, 422 cases.
+  `uv run pyright`; `uv run pytest` (unit + integration with Mongo up); representative
+  API queries via curl.
 - **Exit criteria**: all pass; representative API queries return verified correct aggregates;
-  completion report; explicit approval.
+  Pyright 0 errors; completion report; explicit approval.
 
 ## Phase 3 — Frontend Design System and Dashboard Shell
 

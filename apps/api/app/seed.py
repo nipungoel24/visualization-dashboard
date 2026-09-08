@@ -5,7 +5,7 @@ import json
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pymongo import ReplaceOne
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
@@ -80,8 +80,10 @@ async def seed_database(
     if not report.ok:
         raise ValidationError(report.fatal_errors)
 
+    valid_records = cast(list[dict[str, object]], records)
     documents = [
-        normalize_record(dataset_sha256, index, record) for index, record in enumerate(records)
+        normalize_record(dataset_sha256, index, record)
+        for index, record in enumerate(valid_records)
     ]
 
     database = client[db_name]
@@ -90,7 +92,7 @@ async def seed_database(
     for field in INDEXED_FIELDS:
         await insights.create_index(field, name=f"idx_{field}")
 
-    await insights.bulk_write(
+    result = await insights.bulk_write(
         [ReplaceOne({"_id": doc["_id"]}, doc, upsert=True) for doc in documents],
         ordered=False,
     )
@@ -130,8 +132,12 @@ async def seed_database(
         "source_path": str(source_path),
         "source_sha256": dataset_sha256,
         "source_row_count": len(records),
-        "documents_imported": final_count,
+        "documents_processed": len(documents),
+        "documents_inserted": result.upserted_count,
+        "documents_matched": result.matched_count,
+        "documents_modified": result.modified_count,
         "stale_documents_removed": stale.deleted_count,
+        "final_document_count": final_count,
         "indexes_ensured": len(INDEXED_FIELDS),
         "quality_notes": report.quality_notes,
         "elapsed_seconds": round(time.perf_counter() - started, 3),
@@ -168,9 +174,14 @@ async def run(parser: argparse.ArgumentParser) -> int:
         await client.close()
 
     print("SEED COMPLETE")
-    for key in ("source_path", "source_sha256", "source_row_count", "documents_imported"):
+    for key in ("source_path", "source_sha256", "source_row_count"):
         print(f"  {key}: {summary[key]}")
+    print(f"  documents_processed: {summary['documents_processed']}")
+    print(f"  documents_inserted: {summary['documents_inserted']}")
+    print(f"  documents_matched: {summary['documents_matched']}")
+    print(f"  documents_modified: {summary['documents_modified']}")
     print(f"  stale_documents_removed: {summary['stale_documents_removed']}")
+    print(f"  final_document_count: {summary['final_document_count']}")
     print(f"  indexes_ensured: {summary['indexes_ensured']}")
     print(f"  elapsed_seconds: {summary['elapsed_seconds']}")
     for note in summary["quality_notes"]:

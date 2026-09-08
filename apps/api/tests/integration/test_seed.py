@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 
 from app.config import Settings
 from app.db import create_client
@@ -30,9 +31,15 @@ pytestmark = [
 
 @pytest.fixture
 async def test_db() -> AsyncIterator[tuple[AsyncMongoClient, str]]:
+    if TEST_URI is None:
+        pytest.skip("MONGODB_TEST_URI not set")
     db_name = f"insightscope_test_{uuid.uuid4().hex[:8]}"
     settings = Settings(mongodb_uri=TEST_URI, mongodb_db=db_name)  # type: ignore[arg-type]
     client = create_client(settings)
+    try:
+        await client.admin.command("ping")
+    except ServerSelectionTimeoutError:
+        pytest.skip("MongoDB unreachable")
     yield client, db_name
     await client.drop_database(db_name)
     await client.close()
@@ -44,7 +51,9 @@ class TestSeedIntegration:
     ) -> None:
         client, db_name = test_db
         summary = await seed_database(client, db_name, DEFAULT_SOURCE_PATH)
-        assert summary["documents_imported"] == 1000
+        assert summary["documents_processed"] == 1000
+        assert summary["documents_inserted"] == 1000
+        assert summary["final_document_count"] == 1000
         assert summary["source_row_count"] == 1000
         assert summary["source_sha256"] == EXPECTED_SOURCE_SHA256
         assert await client[db_name][INSIGHTS_COLLECTION].count_documents({}) == 1000
@@ -55,7 +64,9 @@ class TestSeedIntegration:
         client, db_name = test_db
         await seed_database(client, db_name, DEFAULT_SOURCE_PATH)
         second = await seed_database(client, db_name, DEFAULT_SOURCE_PATH)
-        assert second["documents_imported"] == 1000
+        assert second["documents_processed"] == 1000
+        assert second["documents_inserted"] == 0
+        assert second["documents_matched"] == 1000
         assert second["stale_documents_removed"] == 0
         insights = client[db_name][INSIGHTS_COLLECTION]
         assert await insights.count_documents({}) == 1000
@@ -110,6 +121,7 @@ class TestSeedIntegration:
 
         insights = client[db_name][INSIGHTS_COLLECTION]
         assert await insights.count_documents({}) == 1000
+        assert before is not None
         after = await insights.find_one({"_id": before["_id"]})
         assert after == before
 

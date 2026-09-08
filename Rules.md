@@ -41,7 +41,7 @@ conflict, escalate to the user before proceeding.
     fields = AND. Individual endpoints never re-implement filtering.
 14. Clients may never submit raw Mongo operators. Every field name, sort key, and parameter is
     validated against an explicit whitelist. Unknown/invalid input -> `422`.
-15. Pagination is validated: `page >= 1`, `pageSize` default 20, max 100.
+15. Pagination is validated: `page >= 1`, `page_size` default 25, max 100.
 16. Never interpolate untrusted values into aggregation pipelines without validation.
 17. Errors: user-facing message in the response; full trace logged server-side only. Never
     expose credentials, stack traces, or internal exception text to the browser.

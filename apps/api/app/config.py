@@ -34,4 +34,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     _load_env_files()
-    return Settings()
+    return Settings()  # pyright: ignore[reportCallIssue] — required env fields are enforced at runtime (fail fast)

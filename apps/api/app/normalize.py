@@ -1,4 +1,5 @@
 import hashlib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 
@@ -70,7 +71,7 @@ def compute_identity(dataset_sha256: str, row_index: int) -> str:
     return hashlib.sha256(f"{dataset_sha256}:{row_index}".encode()).hexdigest()
 
 
-def validate_dataset(records: list[object]) -> ValidationReport:
+def validate_dataset(records: Sequence[object]) -> ValidationReport:
     report = ValidationReport()
 
     if not isinstance(records, list):

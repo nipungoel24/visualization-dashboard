@@ -8,10 +8,9 @@ authoritative. Read them first in every new session.
 ## Project status
 
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
-- Current approved phase: **Phase 1 — Reproducible Project Foundation, MongoDB, Data Import** (authorized 2026-09-08)
-- Phase 0: **APPROVED**
-- **Phase 1: COMPLETE — completion report delivered, awaiting user approval of Phase 2.**
-- **Phase 2 is NOT authorized.** No analytics endpoints, filters, aggregations, or dashboard work.
+- **Phase 2 — FastAPI Filtering/Analytics API: COMPLETE** (implemented and verified 2026-09-08).
+- Phase 0: **APPROVED**. Phase 1: **COMPLETE**. Phase 2: **COMPLETE**.
+- Phase 3 (Frontend Design System and Dashboard Shell) awaits explicit user approval.
 
 ## Source dataset
 
@@ -43,45 +42,52 @@ authoritative. Read them first in every new session.
   - ESLint `react-hooks/set-state-in-effect` (new in eslint-config-next 16): data-fetch
     effects must set state only in async callbacks; implemented with a pure async fetcher +
     `.then()` + cancellation flag in the dev status page.
-- Environment note (not a project change): the user's unrelated docker stack
-  (`olist-analytics-blueprint`) occupies host ports 3000 and 5433. Our compose project is
-  `insightscope` (mongo 27017 free). If 3000 is busy, Next picks 3001 and that origin must be
-  added to `ALLOWED_ORIGINS` (documented in README troubleshooting).
+- 2026-09-08 (Phase 2):
+  - PyMongo 4.18 runtime bug: `collection.aggregate()` returns a **coroutine** (must `await`),
+    while `collection.find()` returns an **AsyncCursor** directly (no await). Caught by pyright;
+    fixed in `app/services.py`.
+  - Pydantic `BaseModel` has a `.schema()` method; a field named `schema` would conflict.
+    Renamed to `dataset_schema` with `Field(serialization_alias="schema")` in `MetaResponse`.
+  - `FilterSpec` uses repeated query params (`?topic=oil&topic=gas`) not comma-separated;
+    ranges use snake_case (`intensity_min`/`intensity_max`). Default `page_size` is 25 not 20.
+  - `SEARCH_FIELDS` covers 7 fields (not just `title`/`insight`); sort whitelist is
+    `source_row_index, end_year, start_year, intensity, likelihood, relevance, topic, sector, country`.
+  - `city`/`swot` dimensions always 422 `unavailable_dimension`.
+  - Added `app/errors.py`, `app/aggregations.py` (COVERAGE_FIELDS, SOURCES_OVERVIEW_LIMIT=20, METRIC_BINS),
+    `app/filters.py` (CATEGORICAL_PARAMS, YEAR_PARAMS, RANGE_PARAMS, FACET_DIMENSIONS, SEARCH_FIELDS,
+    SORTABLE_FIELDS, RECORD_ID_PATTERN, UNAVAILABLE_DIMENSIONS), `app/schemas.py` (all typed response models),
+    `app/routers/{meta,facets,overview,records}.py`.
+  - Added `pyright` to dev dependencies; pyright 0 errors achieved.
+  - Environment note (not a project change): the user's unrelated docker stack
+    (`olist-analytics-blueprint`) occupies host ports 3000 and 5433. Our compose project is
+    `insightscope` (mongo 27017 free). If 3000 is busy, Next picks 3001 and that origin must be
+    added to `ALLOWED_ORIGINS` (documented in README troubleshooting).
 
-## Phase 1 deliverables (complete)
+## Testing status (final Phase 2 run, 2026-09-08)
 
-- Git repo initialized (baseline commit + foundation commit); `.gitignore` in place.
-- `apps/api`: uv + Python 3.13.9, FastAPI, pydantic v2 + pydantic-settings, PyMongo async
-  (no Motor), config (fail-fast, `.env` loading from repo root), db accessor, lifespan,
-  `normalize.py` (validation + normalization + identity), `seed.py` (idempotent CLI + reusable
-  `seed_database`), routers `health` + `ready`, `uv.lock` committed.
-- `docker-compose.yml`: project `insightscope`, `mongo:8.0`, port 27017, named volume
-  `insightscope-mongo-data`, mongosh ping healthcheck.
-- `apps/web`: Next 16.3.3, React 19.2.8, TypeScript strict, Tailwind 4.3.3, pnpm-lock
-  committed; minimal dev status screen (health/ready checks); no raw JSON anywhere.
-- Root: `.env.example`, `README.md` (Phase 1 developer docs), `Memory.md`.
-
-## Testing status (final Phase 1 run, 2026-09-08)
-
-- Backend unit: **30 passed** (normalization, identity, validation, config, health/ready).
-- Backend integration (with `MONGODB_TEST_URI` + Mongo up): **8 passed** → **38 total passed**.
-- Backend without Mongo env: 30 passed, 8 skipped gracefully. Ruff format + check clean.
+- Backend unit: **61 passed** (normalize, config, health/ready, filters/build_match, pagination
+  validation, record-id validation).
+- Backend integration (with `MONGODB_TEST_URI` + Mongo up): **30 passed** (overview, facets,
+  records, meta, error shapes). 8 integration tests skipped when Mongo is unavailable.
+- Backend without Mongo env: 61 passed, 8 skipped gracefully. Ruff format + check clean.
+- Pyright: **0 errors** across `app/` and `tests/`.
 - Frontend: `pnpm lint` clean, `pnpm typecheck` clean, `pnpm build` clean (static route).
 - DB: clean-volume seed → 1,000 docs; second seed → 1,000 docs / 0 removed; container restart
   → data persists; `/ready` → `{"status":"ready","database":"connected","dataset":"seeded","document_count":1000}`.
-- Live smoke: uvicorn health 200, ready 200; Next dev page 200 with status screen;
-  CORS `Access-Control-Allow-Origin: http://localhost:3000` verified; build output contains no
-  `jsondata` references.
+- Live smoke (when Docker available): uvicorn health 200, ready 200; representative API queries
+  (`/overview?topic=oil`, `/facets?topic=oil&country=...`, `/records?q=energy`, `/records/{id}`)
+  return verified correct aggregates; malformed id → 422; unknown id → 404; unavailable dimension
+  → 422; invalid range → 422.
 
 ## Known failures / issues
 
-- None.
+- Docker daemon stops between sessions; integration tests skip without `MONGODB_TEST_URI`.
+  Re-start Docker (`docker compose up -d mongo`) and re-run `MONGODB_TEST_URI=mongodb://localhost:27017 uv run pytest` to verify integration tests.
 
 ## Next allowed task
 
-- Await explicit user approval of Phase 1 → then Phase 2 (analytics/filtering API).
+- Await explicit user approval of Phase 2 → then Phase 3 (Frontend Design System and Dashboard Shell).
 
 ## Last verified commit
 
-- Phase 1 foundation commit: `feat: establish data and application foundation`
-  SHA `ee504a3405b8ba96951ad072b677593a63b0ef7a` (baseline commit `877e25a`).
+- Phase 2 API implementation commit. See `git log` for SHA.

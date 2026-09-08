@@ -15,8 +15,8 @@ API backed by MongoDB.
 **Project control files** (read these first): `PRD.md`, `Architecture.md`, `Rules.md`,
 `Phases.md`, `Design.md`. Current execution state: `Memory.md`.
 
-> Status: Phase 1 (foundation) complete. The dashboard UI, analytics endpoints, and D3
-> visualizations arrive in later phases. This README documents the reproducible developer setup.
+> Status: Phase 2 (filtering/analytics API) complete. Frontend arrives in Phase 3.
+> This README documents the reproducible developer setup.
 
 ## Prerequisites
 
@@ -70,6 +70,10 @@ uv run uvicorn app.main:app --reload --port 8000
 
 - `GET http://localhost:8000/api/v1/health` — process liveness.
 - `GET http://localhost:8000/api/v1/ready` — MongoDB connectivity + seeded dataset check.
+- `GET http://localhost:8000/api/v1/meta` — dataset metadata and schema.
+- `GET http://localhost:8000/api/v1/overview?topic=oil` — dashboard overview (single `$facet`).
+- `GET http://localhost:8000/api/v1/facets?topic=oil` — filter options (scoped).
+- `GET http://localhost:8000/api/v1/records?page=1&page_size=25` — paginated records.
 
 ## 6. Start the frontend
 
@@ -89,6 +93,7 @@ Backend:
 cd apps/api
 uv run ruff format --check .      # formatting
 uv run ruff check .               # lint
+uv run pyright                    # type checking
 uv run pytest                     # unit tests (always run)
 MONGODB_TEST_URI=mongodb://localhost:27017 uv run pytest   # + integration tests (Mongo up)
 ```
@@ -115,7 +120,7 @@ pnpm build
 ## Repository layout
 
 ```
-apps/api        FastAPI backend (Python 3.13, uv): seed, health/ready, normalization
+apps/api        FastAPI backend (Python 3.13, uv): seed, health/ready/meta/facets/overview/records, normalization, Pyright
 apps/web        Next.js 16.3.3 frontend (pnpm, TypeScript strict, Tailwind 4)
 data/raw/       Immutable source dataset (pinned SHA-256)
 reference/      Original assignment document

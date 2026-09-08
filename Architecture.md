@@ -139,22 +139,39 @@ appropriate HTTP status; internal exception details are logged server-side and n
 | `GET /api/v1/meta` | Dataset metadata: count, sha256, imported_at, schema fields, per-field availability + populated counts, `city.available=false`, `swot.available=false`. |
 | `GET /api/v1/facets?<filters>` | Filter options with counts, scoped by other active filters (see 6.2). |
 | `GET /api/v1/overview?<filters>` | Single `$facet` aggregate payload (see 7). |
-| `GET /api/v1/records?<filters>&page=1&pageSize=20&sort=title&order=asc&q=` | Paginated filtered records. |
+| `GET /api/v1/records?<filters>&page=1&page_size=25&sort=source_row_index&order=asc&q=` | Paginated filtered records. |
 | `GET /api/v1/records/{id}` | Single record by deterministic `_id`. `404` if unknown. |
 
 ### 5.1 Filter query parameters (shared by facets/overview/records)
 
-- Multi-value: `topics`, `sectors`, `regions`, `countries`, `pestle`, `sources` — comma-separated.
-- Single-category multi: `endYears`, `startYears` — comma-separated ints.
-- Ranges: `intensityMin`, `intensityMax`, `likelihoodMin`, `likelihoodMax`, `relevanceMin`, `relevanceMax`.
-- Records only: `page`, `pageSize`, `sort`, `order`, `q` (regex search on `title` and `insight`, escaped).
+All filter parameters are **repeated query params** (`?topic=oil&topic=gas`). Numeric
+ranges use `_min`/`_max` suffixes (`intensity_min=5&intensity_max=20`).
+
+- Categorical: `topic`, `sector`, `region`, `pestle`, `source`, `country` — repeated
+  values combine with OR within the field.
+- Year lists: `end_year`, `start_year` — repeated comma-free ints.
+- Ranges: `intensity_min`, `intensity_max`, `likelihood_min`, `likelihood_max`,
+  `relevance_min`, `relevance_max`.
+- Search: `q` — free text matched case-insensitively against `title`, `insight`,
+  `topic`, `sector`, `source`, `country`, `region` using escaped-regex matching
+  (max 100 chars).
+- Pagination (records only): `page` (default 1, ≥1), `page_size` (default 25, max 100),
+  `sort` (whitelist below), `order` (`asc`/`desc`).
 
 ### 5.2 Validation
 
-- `FilterSpec` (Pydantic) parses and validates every parameter: known field names only,
-  non-negative bounded page/pageSize (default 20, max 100), int year lists, numeric ranges.
-- Sort whitelist: `title, topic, sector, country, region, end_year, start_year, intensity, likelihood, relevance, source, added, published`.
+- `FilterSpec` + `PaginationSpec` (FastAPI dependencies) parse and validate every
+  parameter: known field names only, non-negative bounded page/pageSize (default 25,
+  max 100), int year lists, numeric ranges with min ≤ max, sort whitelist.
+- Sort whitelist: `source_row_index`, `end_year`, `start_year`, `intensity`,
+  `likelihood`, `relevance`, `topic`, `sector`, `country`. Default sort is
+  `source_row_index` ascending.
+- `q` is regex-escaped before matching.
 - Unknown query params are rejected with `422` (strict surface).
+- `city` and `swot` are rejected with `422` (`unavailable_dimension`) whenever a
+  non-empty value is submitted, since they are not in the source dataset.
+- Record ids must match `^[0-9a-f]{64}$` (SHA-256 hex); malformed -> `422`
+  (`invalid_record_id`).
 - No raw operator objects (`$gt` etc.) are accepted from clients, ever.
 
 ## 6. Filter Semantics (centralized)
@@ -170,9 +187,12 @@ appropriate HTTP status; internal exception details are logged server-side and n
 
 ### 6.2 Facet scoping (faceted search)
 
-Facet counts for a field are computed with **all other** active filter constraints applied and
-the field's own constraint removed. This lets each filter show how many records remain per
-option. Implemented in one aggregation that runs one `$match` per facet field.
+Facet counts for a dimension are computed with **all other** active filter constraints applied
+and the field's own categorical selection removed. This lets each filter show how many records
+remain per option. Implemented as a single `$facet` stage; each dimension's sub-pipeline begins
+with a `$match` that re-uses the central filter builder with that dimension excluded, then
+groups by the dimension value. Metric ranges and free-text search always remain active in every
+facet sub-pipeline.
 
 ### 6.3 Implementation ownership
 
@@ -184,17 +204,22 @@ assert the generated `$match` documents for representative and combined cases.
 
 One pipeline: `[{"$match": <central filter>}, {"$facet": {...}}]`. Sections:
 
-- `summary`: `{records, avgIntensity, avgLikelihood, avgRelevance, completeMetricsPct}` computed
+- `summary`: `{filtered_count, avg_intensity, intensity_populated, avg_likelihood,
+  likelihood_populated, avg_relevance, relevance_populated, top_sector}` computed
   over non-null metric values within the filtered set.
-- `intensity` / `likelihood` / `relevance`: bin counts over the numeric value range
-  (fixed binning per field defined in `app/aggregations.py`) + `notSpecified` counts.
-- `years`: counts per non-null `end_year` category + `notSpecified` (no continuous scale).
-- `topics` / `sectors` / `regions` / `countries` / `pestle` / `sources`: per-value `count` and
-  `avgIntensity` (plus `avgLikelihood`, `avgRelevance` where a chart needs them), ordered by count desc.
-- `landscape`: per-topic aggregates `{topic, count, avgIntensity, avgLikelihood, avgRelevance, dominantSector}`
-  (dominant sector = most frequent non-null sector within the topic; ties resolved by count desc then name).
-- `dataCoverage`: per key field, populated percentage for the **full dataset** and for the
-  **filtered set** (two series), from one aggregation + one small unfiltered count set.
+- `intensity` / `likelihood` / `relevance`: bin counts over the fixed bin ranges
+  (defined in `app/aggregations.py`) + `not_specified` counts.
+- `years`: counts per non-null `end_year` category, sorted ascending, + `missing_count`.
+- `topics` / `sectors` / `pestle` / `regions` / `countries`: per-value `count`,
+  `avg_intensity` (plus `avg_likelihood`, `avg_relevance` where a chart needs them),
+  ordered by count desc, + `missing_count`.
+- `sources`: top 20 by `count` (plus `total_unique`, `limited`, `limit` metadata),
+  + `missing_count`.
+- `landscape`: per-topic `{topic, record_count, avg_intensity, avg_likelihood,
+  avg_relevance, dominant_sector}` (dominant sector = first sector by count desc then
+  name among non-null sectors within the topic).
+- `data_coverage`: per key field, `{field, populated_count, missing_count,
+  populated_percentage}` for the **filtered set**.
 
 All averages are averages of non-null values; every payload includes the per-section record
 denominator so the UI can label aggregates honestly.
@@ -259,6 +284,7 @@ blackcoffer-visualization-dashboard/
     │   │   ├── main.py            # FastAPI app + lifespan (client lifecycle)
     │   │   ├── config.py          # pydantic-settings; validated on startup
     │   │   ├── db.py              # AsyncMongoClient accessor
+    │   │   ├── errors.py          # ApiError + exception handlers
     │   │   ├── normalize.py       # normalization + dataset validation
     │   │   ├── filters.py         # FilterSpec + central $match builder
     │   │   ├── aggregations.py    # $facet overview + facets pipelines
@@ -307,7 +333,8 @@ Morphicons + static icons), `morphicons` (state-transition icons; `reducedMotion
 `pymongo>=4.13` (async API; verified against 4.18: the documented alias
 `pymongo.asynchronous.AsyncMongoClient` is **not exported at the package top level** — import
 from `pymongo.asynchronous.mongo_client import AsyncMongoClient`).
-Dev: `pytest`, `pytest-asyncio`, `httpx` (ASGITransport tests), `ruff`. **No Motor, no ORM/ODM.**
+Dev: `pytest`, `pytest-asyncio`, `httpx` (ASGITransport tests), `ruff`, `pyright`.
+**No Motor, no ORM/ODM.**
 
 **Explicitly not added**: Redux, Zustand, Redis, queues, GraphQL, auth libraries, chart
 component libraries (D3 only), map libraries, LLM SDKs.
@@ -345,11 +372,13 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ## 14. Testing Architecture
 
 - **Backend unit** (pytest, no DB): normalization rules (blank->null, trim, preserve extremes),
-  FilterSpec validation, `$match` builder output for single/OR/AND/range/none cases,
-  pagination bounds, response schemas, null handling, health/ready handler logic.
+  FilterSpec/PaginationSpec validation and `$match` builder output for single/OR/AND/range/empty
+  cases, pagination bounds, response schemas, null handling, health/ready handler logic,
+  error handler shapes.
 - **Backend integration** (pytest marker `integration`, env-gated `MONGODB_TEST_URI`, skip
   gracefully when absent): seed idempotency (double seed), overview sections against a fixture
-  dataset, facets scoping, records pagination/search/sort, records/{id} 404, meta content.
+  dataset, facets scoping, records pagination/search/sort, records/{id} 404, meta content
+  (availability flags, no secrets), error responses for unavailable dimensions and invalid ranges.
 - **Frontend unit** (Vitest + Testing Library): filter state <-> URL serialization round-trip,
   format utilities (dates, numbers), a multi-select filter interaction test, ChartFrame states.
 - **E2E** (Playwright, against docker-compose stack): dashboard loads; KPI data appears; Topic
