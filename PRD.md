@@ -76,7 +76,9 @@ Quoted/paraphrased from the original assignment document:
 - FR-1: `data/raw/jsondata.json` is immutable input. It is never imported by the frontend.
 - FR-2: A seed command validates the dataset, normalizes it, and loads it into MongoDB idempotently (running twice never duplicates records).
 - FR-3: Normalization: blank strings -> `null`; trailing/leading whitespace trimmed from categorical strings; numeric values keep their type and are never defaulted to 0.
-- FR-4: Deterministic record IDs (content-based hash) so re-seeding is stable.
+- FR-4: Deterministic record IDs derived from the source dataset identity plus the original row
+  index (`sha256("<dataset_sha256>:<source_row_index>")`) so re-seeding is stable and row
+  identity survives normalization-rule changes.
 - FR-5: Dataset metadata (filename, SHA-256, imported timestamp, document count, schema keys, field availability) is stored in MongoDB and exposed by the API.
 
 ### 7.2 Backend API (versioned, `/api/v1/*`)

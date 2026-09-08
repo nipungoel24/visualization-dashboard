@@ -31,8 +31,10 @@ approval. No auto-advancing.
   (`.gitignore`, `.env.example`, `docker-compose.yml` with `mongo:8` + volume); `apps/api`
   scaffold via `uv` (Python 3.13, fastapi/uvicorn/pydantic v2/pydantic-settings/pymongo async,
   pytest, pytest-asyncio, httpx, ruff; commit `uv.lock`); config with startup validation; db
-  accessor with lifespan; `app/normalize.py`; `app/seed.py` idempotent seed; deterministic
-  `_id` = SHA-256 of normalized record; indexes per Architecture §3.2; `dataset_meta` document;
+   accessor with lifespan; `app/normalize.py`; `app/seed.py` idempotent seed; deterministic
+   `_id` = `sha256("<dataset_sha256>:<source_row_index>")` with `source_row_index` and
+   `source_dataset_sha256` stored per document; indexes per Architecture §3.2; `dataset_meta`
+   document;
   `apps/web` scaffold via `pnpm create next-app` (Next 16.3.3 pinned, React 19.2.x, TypeScript
   strict, Tailwind 4); commit `pnpm-lock.yaml`. **Create `Memory.md`.**
 - **Out of scope**: API endpoints (except none), UI components, visualizations, E2E.

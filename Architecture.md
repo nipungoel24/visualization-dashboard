@@ -17,7 +17,7 @@ flowchart LR
     subgraph Seed["Backend seed (offline job)"]
         VAL["validate()<br/>whitelist fields, types, 1,000 records"]
         NORM["normalize()<br/>blank->null, trim categoricals"]
-        HASH["_id = sha256(canonical record)"]
+        HASH["_id = sha256(dataset_sha : row_index)<br/>source_row_index stored per doc"]
     end
 
     subgraph DB["MongoDB (Docker dev / Atlas prod)"]
@@ -71,9 +71,13 @@ The browser never touches `jsondata.json`. All dashboard data flows:
 
 **`insights`** — one primary collection. One document per source record.
 
-- `_id`: deterministic string, `sha256` hex of the canonical JSON of the **normalized** record
-  (sorted keys, ensure_ascii=False, UTF-8). Re-seeding is stable; no duplicates possible.
-- Every document keeps all 17 source fields with normalized values (blank -> null).
+- `_id`: deterministic string, `sha256("<dataset_sha256>:<source_row_index>")` hex. Identity is
+  derived from the source dataset version plus the original row index — repeated seeding is
+  idempotent, duplicated URLs or content can never collapse, future normalization-rule changes
+  do not change record identity, and a different source dataset version produces a different
+  identity namespace. Never Mongo auto-generated IDs, never URL, never title.
+- Every document stores `source_row_index` (int) and `source_dataset_sha256` (str) alongside
+  all 17 source fields with normalized values (blank -> null).
 - Field value shapes:
   - categorical (`topic`, `sector`, `region`, `country`, `pestle`, `source`, `title`, `insight`, `url`): string or null;
   - numeric (`intensity`, `likelihood`, `relevance`, `end_year`, `start_year`, `impact`): int or null (never 0-for-missing, never float-converted);
@@ -300,7 +304,9 @@ Morphicons + static icons), `morphicons` (state-transition icons; `reducedMotion
 `@testing-library/react`, `@playwright/test`, `@axe-core/playwright`, `eslint`, `prettier`.
 
 **Backend** (uv, locked): `fastapi`, `uvicorn[standard]`, `pydantic>=2`, `pydantic-settings`,
-`pymongo>=4.13` (async API: `pymongo.asynchronous.AsyncMongoClient`; verified in 4.18 docs).
+`pymongo>=4.13` (async API; verified against 4.18: the documented alias
+`pymongo.asynchronous.AsyncMongoClient` is **not exported at the package top level** — import
+from `pymongo.asynchronous.mongo_client import AsyncMongoClient`).
 Dev: `pytest`, `pytest-asyncio`, `httpx` (ASGITransport tests), `ruff`. **No Motor, no ORM/ODM.**
 
 **Explicitly not added**: Redux, Zustand, Redis, queues, GraphQL, auth libraries, chart
@@ -363,8 +369,10 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ## 16. Important Architectural Decisions (ADRs)
 
 1. **No ORM/ODM** — direct PyMongo async driver; the schema is small and stable.
-2. **Deterministic `_id` = SHA-256 of normalized record** — idempotent seeding, stable URLs,
-   no sequence or ObjectId coupling.
+2. **Deterministic `_id` = SHA-256 of `(dataset_sha256, source_row_index)`** — idempotent
+   seeding, stable row identity independent of content and normalization rules, and a version
+   namespace per source dataset; no sequence or ObjectId coupling. `source_row_index` and
+   `source_dataset_sha256` are stored on each document.
 3. **Single `$facet` overview** — one consistently filtered query feeds every chart; prevents
    per-chart filter divergence and N+1 requests.
 4. **Facets scoped by other filters** — standard faceted search UX, one implementation.

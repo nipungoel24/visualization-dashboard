@@ -1,0 +1,21 @@
+name: insightscope
+
+services:
+  mongo:
+    image: mongo:8.0
+    container_name: insightscope-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  mongo-data:
+    name: insightscope-mongo-data
