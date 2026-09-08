@@ -84,4 +84,4 @@ authoritative. Read them first in every new session.
 ## Last verified commit
 
 - Phase 1 foundation commit: `feat: establish data and application foundation`
-  (SHA recorded below at report time).
+  SHA `ee504a3405b8ba96951ad072b677593a63b0ef7a` (baseline commit `877e25a`).
