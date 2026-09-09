@@ -8,10 +8,11 @@ authoritative. Read them first in every new session.
 ## Project status
 
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
-- **Phase 2 — FastAPI Filtering/Analytics API: IMPLEMENTED + VERIFIED against running MongoDB
-  2026-09-08** (full suite 113 passed, live smoke matrix green). Phase 2 approval still pending.
-- Phase 0: **APPROVED**. Phase 1: **COMPLETE**. Phase 2: **COMPLETE, awaiting approval**.
-- Phase 3 (Frontend Design System and Dashboard Shell) is NOT authorized. Do not begin Phase 3.
+- **Phase 3 — Design System + Dashboard Shell: IMPLEMENTED + VERIFIED 2026-09-08**
+  (vitest 38/38, Playwright real-API smoke 9/9, lint/typecheck/build green,
+  backend regression 113/113). Phase 3 approval pending.
+- Phase 0: **APPROVED**. Phase 1: **COMPLETE**. Phase 2: **APPROVED** (`ddc199d` + `be76739`).
+- Phase 4 (Production D3 visualization system) is NOT authorized. Do not begin Phase 4.
 
 ## Source dataset
 
@@ -89,42 +90,87 @@ authoritative. Read them first in every new session.
     (`olist-analytics-blueprint`) occupies host ports 3000 and 5433. Our compose project is
     `insightscope` (mongo 27017 free). If 3000 is busy, Next picks 3001 and that origin must be
     added to `ALLOWED_ORIGINS` (documented in README troubleshooting).
+- 2026-09-08 (Phase 3):
+  - Architecture §10 clarified: `lucide` (icon data for MorphIcon) vs `lucide-react`
+    (static icons, version-aligned); `@thesvg/icons` added as a pinned direct dependency
+    because pnpm does not link the transitive copy, so `thesvg/<icon>` subpaths would not
+    resolve without it. `d3` install deferred to Phase 4 (no charts yet; no unused deps).
+  - shadcn set up manually but faithfully (radix + cva + `cn`, `components.json` for future
+    CLI use) instead of `shadcn init`, to avoid the CLI overwriting the Design.md token
+    theme; primitives customized to tokens (button, badge, sheet, dialog, popover, command,
+    checkbox, separator, scroll-area, skeleton, tooltip, label, input, collapsible).
+  - cmdk owns listbox/keyboard/selection; option *filtering* is an explicit one-line
+    substring match (`shouldFilter={false}`) because cmdk's built-in DOM reorder crashes
+    under jsdom (`appendChild` of null) and explicit filtering is unit-testable with zero
+    UX change.
+  - Touch targets: chip remove buttons 24px + group headers min 32px + mobile header
+    actions 40px (WCAG 2.2 AA 24px minimum met everywhere; 24px chosen for dense chips
+    over Design §15's 32px desktop guidance — recorded here intentionally).
+  - Added page-level sr-only h1 (the wordmark is a styled <p>, not a heading).
+  - Test-only fixes (no app impact): Playwright `getByLabel`/`getByRole` need
+    `{ exact: true }` (substring matching hit loading skeletons and count badges);
+    Radix-assigned `aria-labelledby` overrides custom `aria-label` on Dialog content and
+    cmdk inputs (use visible titles / cmdk `label` prop); rapid Escape chains get eaten by
+    Radix exit animations (125–150ms) — tests now await each layer's dismissal.
+  - Environment incident (not a project defect): Docker Desktop daemon died mid-session;
+    every API-dependent browser check failed with the app correctly showing its Offline
+    states (accidental end-to-end proof of the error UX). Daemon restarted via the
+    `Docker Desktop.exe` user process; mongo volume data intact (COUNT=1000).
+  - Tooling placement: `app/providers.tsx` added (QueryClient + Tooltip providers; not in
+    the Architecture tree — single client boundary beside `page.tsx`).
 
-## Testing status (Phase 2 verification run, 2026-09-08, Mongo UP)
+## Testing status (Phase 3 verification run, 2026-09-08, Mongo UP)
 
-- Full backend suite with `MONGODB_TEST_URI=mongodb://localhost:27017`: **113 passed,
-  0 failed, 0 skipped, 0 errors — total 113. Mongo integration tests executed: YES.**
-- Ruff check: clean. Ruff format check: 33 files formatted. Pyright: **0 errors**.
-- Mongo pre-verification: container `healthy`; `insights.countDocuments()` = 1000;
-  `dataset_meta.current` exists with `source_sha256=f45b67f7…aeb1744`;
-  raw `jsondata.json` SHA-256 matches pinned value; indexes `_id_` + 11× `idx_*` present.
-- Live smoke (real uvicorn + Mongo, independent raw-JSON cross-checks all match):
-  health 200; ready 200 (seeded/1000); meta 200 (SHA match, city/swot false);
-  overview 1000; `topic=oil` 403; `topic=oil&topic=gas` 492 (OR proven);
-  `topic=oil&country=USA` 51 (AND proven); intensity 10–20 → 352; `q=energy` → 563;
-  `q=.*` → 0 (literal, not regex match-all); scoped facets exact-match raw expectations;
-  zero-result overview → count 0 + null averages (no fake zeros); zero-result records →
-  total 0/pages 0; bad range → 422 `invalid_range`; city/swot → 422
-  `unavailable_dimension`; page 2 → rows 25–49; page_size 101 → 422; asc/desc sorts ordered;
-  unsafe sort → 422 `invalid_sort`; record row-0 detail exact (no sha leak); malformed id →
-  422 `invalid_record_id`; unknown id → 404 `record_not_found`; `World`=131/`world`=1
-  distinct; years 2126:1/2200:1; intensity `not_specified`=38 = raw nulls (nulls never zero).
-- Mongo-outage probe (app pointed at closed port 59999): `/overview` → **503
-  `database_unavailable`**, `/ready` → 503. No fake empty analytics.
-- `/openapi.json`: all 7 Phase 2 routes + 29 typed schemas (+ FastAPI validation wrappers).
-- Frontend regression (no Phase 3 work): `pnpm lint` exit 0, `pnpm typecheck` exit 0,
-  `pnpm build` exit 0 (Next 16.3.3, 3 static pages).
-- Final integrity: raw SHA unchanged (`f45b67f7…aeb1744`), Mongo count 1000, no `.env`
-  created, no secrets, no junk files (stray `query` artifact removed pre-commit).
+- Frontend unit/component (vitest 5.0.0, jsdom): **38 passed, 0 failed** —
+  `filters.spec` (14: URL↔state round-trips, repeated topics, ranges, reset, casing),
+  `format.spec` (10: null→—, zero stays zero, dates, percentages, SHA),
+  `filter-ui.spec` (9: multi-select select/clear/search, disabled City, range validation,
+  chips remove/reset/summarize), `dashboard-states.spec` (5: KPI nulls/loading/error,
+  SectionFrame states, ZeroResults).
+- Playwright real-API smoke (`e2e/smoke.spec.ts`, Chromium, prod build + live backend):
+  **9 passed, 0 failed** — unfiltered 1,000 + zero console errors; oil→403, +gas→492
+  (OR proven in browser); USA narrows to 51 (AND) with chip removal; refresh persistence;
+  reset→1,000; zero-result intentional state; outage interception → error UI (never fake
+  empty); 1024 rail + no overflow; 390 sheet open/filter/Escape + no overflow; reduced-motion
+  interaction intact.
+- Frontend: `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0 (Next 16.3.3).
+- Backend regression (untouched in Phase 3): **113 passed** with Mongo up.
+- Final integrity: raw SHA `f45b67f7…aeb1744` unchanged; Mongo COUNT=1000; no `jsondata` /
+  `data/raw` strings in frontend source; no dataset JSON files under `apps/web`; no `.env`
+  committed; `test-results/` + `.next/` gitignored; working tree contains only Phase 3 files.
+
+## UI skills actually invoked (Phase 3)
+
+- `npx ui-skills start` → categories → `list --category systems/accessibility` →
+  `get nextlevelbuilder/ui-styling` (SUCCEEDED, content applied: radix+shadcn primitive
+  structure, accessible component patterns, responsive layout guidance).
+- `npx skills@latest add emilkowalski/skills -g` (FAILED: PromptScript skills do not
+  support global install; project-level install would pollute the repo). Per Rules R32,
+  followed the guidance manually via raw GitHub `SKILL.md` reads: `emil-design-eng`
+  (APPLIED: custom ease curves, 150/200ms budgets, button `scale(0.97)` press feedback,
+  origin-aware popovers, transition-property specificity, no entrance choreography) and
+  `review-animations` (APPLIED as a self-review: findings table produced zero violations;
+  one consistency fix — `ease-out` added to all overlay enter states; verdict: approve).
+- `npx ui-skills get superfuture/design-review` (SUCCEEDED; rubric self-applied —
+  h1 landmark, touch-target, nested-scroller and overflow findings fixed above).
+- No Pro license present (`~/.design-review/license` absent) — free review only, no
+  fabricated Pro findings.
+- Morphicons: `MorphIcon` from `morphicons/react` + icon *data* from `lucide` (NOT
+  lucide-react components — verified against package README); usages: mobile
+  menu↔close trigger, rail group expand/collapse chevrons; every instance
+  `reducedMotion="user"`, size 16/18, strokeWidth 1.75.
+- theSVG: verified `import { svg, title, hex } from "thesvg/mongodb"` resolves at runtime
+  (MongoDB/47A248); used ONLY in the About/Data Provenance panel
+  (MongoDB, Next.js, Python, FastAPI marks + text badges for the rest).
 
 ## Known failures / issues
 
-- None. (Session-start Docker outage resolved by launching Docker Desktop user process.)
+- None.
 
 ## Next allowed task
 
-- STOP. Await explicit user approval of Phase 2. Do NOT begin Phase 3.
+- STOP. Await explicit user approval of Phase 3. Do NOT begin Phase 4.
 
 ## Last verified commit
 
-- Phase 2 verification commit (loop-scope fix + dominance fix + facet test fix). See `git log`.
+- Phase 3 commit (dashboard design system + shell). See `git log`.

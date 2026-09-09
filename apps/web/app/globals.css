@@ -1,1 +1,96 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --background: #f6f5f1;
+  --surface: #ffffff;
+  --surface-muted: #efeee8;
+  --foreground: #191a1c;
+  --foreground-muted: #5f636b;
+  --border: #e3e1d9;
+  --border-strong: #c9c6bc;
+  --primary: #0f5a3c;
+  --primary-hover: #0b4530;
+  --primary-foreground: #ffffff;
+  --highlight: #cdeb45;
+  --danger: #b42318;
+  --success: #0f5a3c;
+  --focus-ring: rgba(15, 90, 60, 0.45);
+  --radius: 6px;
+  --overlay-shadow: 0 2px 8px rgba(25, 26, 28, 0.08);
+
+  /* Motion curves (Emil Kowalski guidance: strong custom easings, never ease-in). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Chart palette placeholders for Phase 4 (Design §4.1). */
+  --chart-1: #0f5a3c;
+  --chart-2: #3f6fb5;
+  --chart-3: #c98a2d;
+  --chart-4: #b6463f;
+  --chart-5: #2e7d78;
+  --chart-6: #7a5fa0;
+  --chart-7: #7d8a2e;
+  --chart-8: #5c6b7a;
+  --chart-9: #a65a2e;
+  --chart-10: #33507a;
+  --chart-other: #8b8e93;
+  --heat-low: #e8e4da;
+  --heat-mid: #6b8e7c;
+  --heat-high: #0f5a3c;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-highlight: var(--highlight);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-focus-ring: var(--focus-ring);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.25rem;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --shadow-overlay: var(--overlay-shadow);
+
+  --ease-out: var(--ease-out);
+  --ease-drawer: var(--ease-drawer);
+}
+
+@layer base {
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

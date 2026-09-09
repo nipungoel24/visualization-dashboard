@@ -324,9 +324,11 @@ No new architectural areas are introduced without updating this document.
 `typescript`, `tailwindcss` 4.x, `shadcn/ui` (CLI-generated primitives + `radix` deps it pulls),
 `@tanstack/react-query`, `d3` (submodules used: `d3-scale`, `d3-array`, `d3-hierarchy`,
 `d3-shape`, `d3-interpolate` — via `d3` root or subpackages), `lucide` (icon **data** for
-Morphicons + static icons), `morphicons` (state-transition icons; `reducedMotion="user"`),
-`thesvg` (brand marks only, e.g. About/Data Provenance tech badges; verified exports
-`thesvg/<icon>` with `{svg, title, hex}`), `clsx`, `tailwind-merge`. Dev: `vitest`,
+Morphicons), `lucide-react` (static icons, version-aligned with `lucide`), `morphicons`
+(state-transition icons; `reducedMotion="user"`),
+`thesvg` (brand marks only, e.g. About/Data Provenance tech badges; verified subpath imports
+`thesvg/<icon>` with `{svg, title, hex}`) plus its pinned peer `@thesvg/icons` (required so
+the `thesvg/<icon>` subpaths resolve under pnpm), `clsx`, `tailwind-merge`. Dev: `vitest`,
 `@testing-library/react`, `@playwright/test`, `@axe-core/playwright`, `eslint`, `prettier`.
 
 **Backend** (uv, locked): `fastapi`, `uvicorn[standard]`, `pydantic>=2`, `pydantic-settings`,
