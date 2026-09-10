@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ActiveFilterChips } from "@/components/filters/ActiveFilterChips";
 import type { MetricName } from "@/components/filters/FilterGroups";
 import { userFacingMessage } from "@/lib/api";
+import { useCanonicalSectors } from "@/lib/d3/palette";
 import {
   EMPTY_FILTERS,
   countActiveFilters,
@@ -115,6 +116,8 @@ export function Dashboard() {
     update(EMPTY_FILTERS);
   }, [filters, update]);
 
+  const canonicalSectors = useCanonicalSectors(overview.data?.sectors.values);
+
   const railProps = {
     filters,
     facets: facets.data,
@@ -167,9 +170,15 @@ export function Dashboard() {
           ) : (
             <>
               <VisualizationSections
-                filters={filters}
-                params={params}
+                overview={overview.data}
+                isPending={overview.isPending}
+                isError={overview.isError}
+                errorMessage={overview.isError ? userFacingMessage(overview.error) : null}
+                onRetry={() => void overview.refetch()}
                 hasResults={hasResults}
+                filters={filters}
+                canonicalSectors={canonicalSectors}
+                onToggle={handleToggle}
               />
               <RecordsPlaceholder
                 total={overview.data?.summary.filtered_count}

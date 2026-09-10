@@ -26,7 +26,7 @@ export function RecordsPlaceholder({
         </span>
       }
     >
-      <PhaseNote>
+      <PhaseNote note="Interactive table, pagination, sorting and record detail arrive with the full Records Explorer.">
         A sortable, paginated table with per-record detail and original-source links. The
         count above already reflects the current filters.
       </PhaseNote>

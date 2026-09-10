@@ -8,11 +8,11 @@ authoritative. Read them first in every new session.
 ## Project status
 
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
-- **Phase 3 — Design System + Dashboard Shell: IMPLEMENTED + VERIFIED 2026-09-08**
-  (vitest 38/38, Playwright real-API smoke 9/9, lint/typecheck/build green,
-  backend regression 113/113). Phase 3 approval pending.
+- **Phase 4 — Production D3 Visualization System: IMPLEMENTED + VERIFIED 2026-09-10**
+  (vitest 80/80, Playwright real-API smoke 19/19 × 2 runs, lint/typecheck/build green,
+  backend regression 61 passed / 52 skipped). Phase 4 provisionally accepted.
 - Phase 0: **APPROVED**. Phase 1: **COMPLETE**. Phase 2: **APPROVED** (`ddc199d` + `be76739`).
-- Phase 4 (Production D3 visualization system) is NOT authorized. Do not begin Phase 4.
+- Phase 3: **APPROVED** (`9cdc3d5`). Phase 5 (Records Explorer) is NOT authorized.
 
 ## Source dataset
 
@@ -119,27 +119,71 @@ authoritative. Read them first in every new session.
   - Tooling placement: `app/providers.tsx` added (QueryClient + Tooltip providers; not in
     the Architecture tree — single client boundary beside `page.tsx`).
 
-## Testing status (Phase 3 verification run, 2026-09-08, Mongo UP)
+## Testing status (Phase 4 verification run, 2026-09-10, Mongo UP)
 
-- Frontend unit/component (vitest 5.0.0, jsdom): **38 passed, 0 failed** —
-  `filters.spec` (14: URL↔state round-trips, repeated topics, ranges, reset, casing),
-  `format.spec` (10: null→—, zero stays zero, dates, percentages, SHA),
-  `filter-ui.spec` (9: multi-select select/clear/search, disabled City, range validation,
-  chips remove/reset/summarize), `dashboard-states.spec` (5: KPI nulls/loading/error,
-  SectionFrame states, ZeroResults).
+- Frontend unit/component (vitest 5.0.0, jsdom): **80 passed, 0 failed** —
+  `filters.spec` (14), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
+  `treemap.spec` (3), `tooltip.spec` (3), `filter-ui.spec` (9), `dashboard-states.spec` (5),
+  `charts.spec` (12).
 - Playwright real-API smoke (`e2e/smoke.spec.ts`, Chromium, prod build + live backend):
-  **9 passed, 0 failed** — unfiltered 1,000 + zero console errors; oil→403, +gas→492
+  **19 passed, 0 failed** — unfiltered 1,000 + zero console errors; oil→403, +gas→492
   (OR proven in browser); USA narrows to 51 (AND) with chip removal; refresh persistence;
   reset→1,000; zero-result intentional state; outage interception → error UI (never fake
   empty); 1024 rail + no overflow; 390 sheet open/filter/Escape + no overflow; reduced-motion
-  interaction intact.
+  interaction intact; landscape bubble tap at mobile viewport; all nine D3 charts render with
+  real data and no placeholders; landscape bubble click → oil 403 (chip + URL agree); overlap
+  resolution (population center → population, oil center → oil); gas API cross-check + OR sum;
+  oil + USA = 51 across every surface; chart-originated filter survives refresh + removal
+  restores state; end-year bar click → 53 records; sector tile click → Energy records; zero
+  result keeps charts honest; filter stress produces no request storm or stuck tooltips or
+  bad SVG. Two consecutive passes for stability.
 - Frontend: `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0 (Next 16.3.3).
-- Backend regression (untouched in Phase 3): **113 passed** with Mongo up.
+- Backend regression (untouched in Phase 4): **61 passed, 52 skipped** with Mongo up.
 - Final integrity: raw SHA `f45b67f7…aeb1744` unchanged; Mongo COUNT=1000; no `jsondata` /
   `data/raw` strings in frontend source; no dataset JSON files under `apps/web`; no `.env`
-  committed; `test-results/` + `.next/` gitignored; working tree contains only Phase 3 files.
+  committed; `test-results/` + `.next/` gitignored; working tree contains only Phase 4 files.
 
-## UI skills actually invoked (Phase 3)
+## Phase 4 D3 visualization decisions
+
+- D3 deps: `d3-scale`, `d3-array`, `d3-hierarchy`, `d3-delaunay` (not full d3 umbrella).
+  Types: `@types/d3-scale`, `@types/d3-array`, `@types/d3-hierarchy`.
+- SignalsLandscape: X=likelihood, Y=relevance, area=intensity, color=dominant-sector.
+  Fixed domains: likelihood [1,4], relevance [1,6], intensity [0,96]. Sqrt radius [5,26px].
+  Golden-angle spiral jitter (max 30px) for colliding (lik,rel) pairs. Labels top-5 + selected.
+  Click → `onToggle("topic", value)`.
+- **Pointer architecture**: SVG has `pointerEvents="all"` and a native `addEventListener("click")`
+  attached via `useEffect` with `[rendered]` deps (not `[]` — SSR hydration runs the effect
+  before `svgRef.current` is populated; `[rendered]` ensures re-attachment when data arrives).
+  All `<g>` bubble elements have `pointerEvents="none"` so clicks pass through to the SVG.
+  On click: `localFromEvent()` computes SVG-local coords from `clientX/Y - svgRect`, then
+  `nearestPoint()` (Delaunay) resolves to the nearest rendered bubble. Overlapping bubbles
+  are resolved by proximity, not SVG paint order. `rendered`, `onToggleTopic`, `margin`,
+  `xScale`, `yScale` are synced via refs in a separate `useEffect` (React 19 `react-hooks/refs`
+  compliance — refs must not be updated during render). `margin` is wrapped in `useMemo([compact])`
+  to prevent stale-deps lint warnings.
+- **Root-cause note**: In this project's React 19 + SVG + Playwright interaction path,
+  browser-level pointer activation was not reliably reaching the previous React SVG synthetic
+  handlers. The Signals Landscape therefore uses a native SVG event listener for pointer
+  interaction. Evidence: CDP-dispatched `page.mouse.click()` lands on the SVG (`elementFromPoint`
+  confirms `hit=svg pe=all`), the native listener fires (`isTrusted: true`), and Delaunay
+  resolution correctly invokes `onToggleTopic`. The hypothesis is React 19's event delegation
+  system in production builds; the fact is the native listener works reliably.
+- EndYearChart: band-scale categorical bars. Click → `onToggle("end_year", value)`.
+  **SVG interaction fix**: added `onClick` to both `<rect>` elements (transparent hit target
+  + visual bar) so Playwright can dispatch click events directly on the visual mark, bypassing
+  React 19 event delegation issues with `<g>` elements.
+- SectorTreemap: D3 squarified treemap, tile area = count, color = avg intensity via
+  `scaleLinear` domain [1,48,96] → `["#E8E4DA","#6B8E7C","#0F5A3C"]`. Click → sector filter.
+  **SVG interaction fix**: added `onClick` to the visual `<rect>` for the same reason.
+- RankingChart: shared HTML horizontal bars with D3 `scaleLinear` widths. Roving focus,
+  tooltips, selected inset border. Top-N: Country=15, Topic=15, Source=all from backend.
+- CoverageChart: horizontal completeness bars. MetricDistribution: backend bins. Both informational.
+- `overflow-visible` removed from landscape SVG to prevent jittered bubbles from causing
+  document-level horizontal scroll at the `lg` grid breakpoint. `overflow-x: clip` added to
+  html/body as belt-and-suspenders.
+- `SectionFrame` gets `scroll-mt-16` to prevent sticky header from covering chart tops.
+
+## UI skills actually invoked (Phase 3 + Phase 4)
 
 - `npx ui-skills start` → categories → `list --category systems/accessibility` →
   `get nextlevelbuilder/ui-styling` (SUCCEEDED, content applied: radix+shadcn primitive
@@ -169,8 +213,8 @@ authoritative. Read them first in every new session.
 
 ## Next allowed task
 
-- STOP. Await explicit user approval of Phase 3. Do NOT begin Phase 4.
+- STOP. Await explicit user approval of Phase 4 closeout commit. Do NOT begin Phase 5.
 
 ## Last verified commit
 
-- Phase 3 commit (dashboard design system + shell). See `git log`.
+- `9cdc3d5` (Phase 3 shell). Phase 4 closeout commit pending.

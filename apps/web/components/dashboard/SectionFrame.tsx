@@ -45,7 +45,7 @@ export function SectionFrame({
   return (
     <section
       aria-label={title}
-      className={cn("rounded-md border border-border bg-surface p-4 sm:p-5", className)}
+      className={cn("scroll-mt-16 rounded-md border border-border bg-surface p-4 sm:p-5", className)}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="min-w-0">
