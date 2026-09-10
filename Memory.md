@@ -121,12 +121,12 @@ authoritative. Read them first in every new session.
 
 ## Testing status (Phase 4 verification run, 2026-09-10, Mongo UP)
 
-- Frontend unit/component (vitest 5.0.0, jsdom): **80 passed, 0 failed** —
+- Frontend unit/component (vitest 5.0.0, jsdom): **80 passed, 0 failed, 0 skipped** —
   `filters.spec` (14), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
   `treemap.spec` (3), `tooltip.spec` (3), `filter-ui.spec` (9), `dashboard-states.spec` (5),
   `charts.spec` (12).
 - Playwright real-API smoke (`e2e/smoke.spec.ts`, Chromium, prod build + live backend):
-  **19 passed, 0 failed** — unfiltered 1,000 + zero console errors; oil→403, +gas→492
+  **19 passed, 0 failed, 0 skipped** — unfiltered 1,000 + zero console errors; oil→403, +gas→492
   (OR proven in browser); USA narrows to 51 (AND) with chip removal; refresh persistence;
   reset→1,000; zero-result intentional state; outage interception → error UI (never fake
   empty); 1024 rail + no overflow; 390 sheet open/filter/Escape + no overflow; reduced-motion
@@ -138,7 +138,10 @@ authoritative. Read them first in every new session.
   result keeps charts honest; filter stress produces no request storm or stuck tooltips or
   bad SVG. Two consecutive passes for stability.
 - Frontend: `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0 (Next 16.3.3).
-- Backend regression (untouched in Phase 4): **61 passed, 52 skipped** with Mongo up.
+- Backend regression (untouched in Phase 4): **113 passed, 0 failed, 0 skipped** with Mongo up
+  (`MONGODB_TEST_URI=mongodb://localhost:27017`). Breakdown: 61 unit tests (always run) +
+  52 integration tests (require `MONGODB_TEST_URI`; seeded into a throwaway `insightscope_test_api_*`
+  database per session). Previous Phase 2/3 baseline was also 113/113.
 - Final integrity: raw SHA `f45b67f7…aeb1744` unchanged; Mongo COUNT=1000; no `jsondata` /
   `data/raw` strings in frontend source; no dataset JSON files under `apps/web`; no `.env`
   committed; `test-results/` + `.next/` gitignored; working tree contains only Phase 4 files.
