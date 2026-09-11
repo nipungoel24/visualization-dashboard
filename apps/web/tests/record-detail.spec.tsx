@@ -47,20 +47,6 @@ describe("RecordDetailSheet", () => {
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("omits the source link when the URL uses an unsafe scheme", () => {
-    render(
-      <RecordDetailSheet
-        open
-        record={{ ...RECORD, url: "javascript:alert(1)" }}
-        isLoading={false}
-        isError={false}
-        errorMessage={null}
-        onOpenChange={() => {}}
-      />,
-    );
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
-  });
-
   it("renders the error state instead of fabricated data", () => {
     render(
       <RecordDetailSheet
@@ -91,5 +77,139 @@ describe("RecordDetailSheet", () => {
     expect(
       document.body.querySelectorAll(".animate-pulse").length,
     ).toBeGreaterThan(0);
+  });
+
+  describe("URL scheme safety", () => {
+    it("renders a clickable link for https URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "https://example.com/article" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      const link = screen.getByRole("link", { name: /View original source/ });
+      expect(link).toHaveAttribute("href", "https://example.com/article");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    });
+
+    it("renders a clickable link for http URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "http://example.com/article" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      const link = screen.getByRole("link", { name: /View original source/ });
+      expect(link).toHaveAttribute("href", "http://example.com/article");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    });
+
+    it("omits the source link for mailto URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "mailto:test@example.com" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("omits the source link for javascript: URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "javascript:alert(1)" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("omits the source link for data: URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "data:text/html,<script>alert(1)</script>" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("omits the source link for malformed URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "not-a-valid-url" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("omits the source link for ftp: URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "ftp://example.com/file" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("omits the source link for file: URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: "file:///etc/passwd" }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("omits the source link for null/empty URLs", () => {
+      render(
+        <RecordDetailSheet
+          open
+          record={{ ...RECORD, url: null }}
+          isLoading={false}
+          isError={false}
+          errorMessage={null}
+          onOpenChange={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
   });
 });

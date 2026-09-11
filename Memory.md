@@ -8,9 +8,9 @@ authoritative. Read them first in every new session.
 ## Project status
 
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
-- **Phase 5 — Records Explorer: IMPLEMENTED + VERIFIED 2026-09-11**
-  (ESLint 0, tsc 0, vitest 97/97, Playwright 28/28, backend 113/113, production build green).
-  Phase 5 provisionally accepted.
+- **Phase 5 — Records Explorer: IMPLEMENTED + CLOSEOUT VERIFIED 2026-09-11**
+  (ESLint 0, tsc 0, vitest 105/105, Playwright 41/41, backend 113/113, production build green).
+  Phase 5 provisionally accepted; closeout passed. Phase 6 NOT started.
 - Phase 0–4: all **APPROVED** (`9400812` + `1a058db` for Phase 4 feat/docs).
 - Phase 6 (Testing, QA, Performance) is NOT authorized.
 
@@ -119,20 +119,49 @@ authoritative. Read them first in every new session.
   - Tooling placement: `app/providers.tsx` added (QueryClient + Tooltip providers; not in
     the Architecture tree — single client boundary beside `page.tsx`).
 
-## Testing status (Phase 5 verification run, 2026-09-11, Mongo UP)
+## Testing status (Phase 5 closeout verification run, 2026-09-11, Mongo UP)
 
-- Frontend unit/component (vitest): **97 passed, 0 failed** —
+- Frontend unit/component (vitest): **105 passed, 0 failed** —
   `filters.spec` (19), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
   `treemap.spec` (3), `tooltip.spec` (3), `filter-ui.spec` (9), `dashboard-states.spec` (5),
-  `charts.spec` (12), `explorer.spec` (7), `record-detail.spec` (4).
-- Playwright real-API E2E (`e2e/smoke.spec.ts` + `e2e/records.spec.ts`): **28 passed, 0 failed** —
-  smoke: 19; records: table render (1,000 + page 1/40 + no doc overflow), sort toggle (URL + reorder),
-  pagination (page=2 + URL + step back), filter resets page (oil→403 / page 1/17), row click→dialog
-  + `record=<sha256>`, deep-link `/?record=<id>`, keyboard Enter/Escape/focus-restore, mobile
-  card list (390 × 844, no table, paginated, no overflow), three-viewport document overflow audit
-  (360/834/1024).
+  `charts.spec` (12), `explorer.spec` (7), `record-detail.spec` (11) —
+  last grew from 4 to 11 tests: the URL-scheme safety matrix (`mailto:`/`javascript:`/`data:`/`ftp:`/`file:`/
+  malformed/null rejected; `http:`/`https:` allowed with `target="_blank" rel="noopener noreferrer"`).
+- Playwright real-API E2E (`e2e/smoke.spec.ts` + `e2e/records.spec.ts`): **41 passed, 0 failed** —
+  smoke: 19; records: 22 — table render (1,000 + page 1/40 + no doc overflow), sort toggle (URL + reorder),
+  sort resets page, pagination (page=2 + URL + step back), filter resets page (oil→403 / page 1/17),
+  real workflow cross-checks (unfiltered 1000/40 pages, oil 403/17, oil+USA 51/3, true detail fields from API),
+  row click→dialog + `record=<sha256>`, deep-link `/?record=<id>`, browser back/forward with filters intact,
+  keyboard Enter/Escape/focus-restore, Close-button focus restore, request isolation (overview/facets not
+  refetched on page/sort/record change), records API failure (graceful empty, KPI intact), detail API failure
+  (drawer alert, dashboard intact, closable), zero-result panel (count=0 → ZeroResults, not broken frames),
+  URL-safety E2E of rendered links, mobile card list (390 × 844, no table, no overflow), required-viewport
+  overflow audit (1440/1024/390). Every guarded flow asserts **zero console errors AND zero console warnings
+  AND zero pageerrors** (hydration/Radix warnings would fail).
 - Backend regression (untouched in Phase 5): **113 passed, 0 failed, 0 skipped** (Mongo UP).
-- Final: `pnpm lint` 0, `pnpm typecheck` 0, `pnpm build` clean, vitest 97, Playwright 28.
+- Final: `npm run lint` 0, `npm run typecheck` 0, `npm run build` (next) clean, vitest 105, Playwright 41.
+
+## Phase 5 closeout decisions (2026-09-11)
+
+- **Source-URL policy (FINAL, user-mandated)**: clickable ONLY `http:` and `https:`. NOT clickable:
+  `mailto:` (removed from allow-list), `javascript:`, `data:`, `file:`, `ftp:`, malformed, any other
+  scheme. `isSafeUrl()` in `RecordDetailSheet.tsx` now allows `["http:", "https:"]`; schemes are never
+  silently rewritten. External links carry `target="_blank" rel="noopener noreferrer"`.
+  Covered by vitest `record-detail.spec` + E2E link assertions.
+- **Browser Back/Forward (record drawer)**: all state changes use `router.replace` EXCEPT record open,
+  which uses `router.push` (`handleOpenRecord` in `Dashboard.tsx`), so Back closes the drawer while
+  filters/page/sort persist and Forward reopens the same record. Close/other changes still `replace`.
+- **Required-viewport QA**: 1440×900, 1024×768, 390×844 asserted via
+  `document.documentElement.scrollWidth <= window.innerWidth + 1` (plus the no-vertical-jank KPI check).
+- **Records-list API failure**: deliberately graceful degradation (records section shows the neutral
+  empty note; KPIs/charts/overview stay accurate because they never depend on the records query; query
+  auto-retries on 5xx and refetches on page/sort/filter change). NO localized error/Retry button in the
+  list by design (user directive: do NOT redesign the Records Explorer). Detail failure = distinct: the
+  drawer shows a localized alert, dashboard remains, drawer stays closable.
+- **Graceful empty vs error**: `filtered_count === 0` → `ZeroResults` panel replaces the whole content
+  area (never broken chart frames); individual facets bar themselves.
+- **E2E console guard**: captures console **errors + warnings** and `pageerror` on every covered flow;
+  any hydration/Radix warning fails the suite. 41/41 green with zero captures.
 
 ## Phase 5 records-explorer decisions
 
@@ -162,9 +191,9 @@ authoritative. Read them first in every new session.
 - **RecordDetailSheet URL**: `record=<sha256>` is parsed by `parseRecordId()`; Radix Dialog is
   rendered at all times with `open={recordId !== null}` so the sheet mounts/dismounts with URL state.
   `onOpenChange(false)` dispatches `onCloseRecord()` → `filters.record: null`.
-- **Safe external links**: `isSafeUrl()` checks `URL.protocol ∈ [http:, https:, mailto:]` and the
-  `<a>` carries `target="_blank" rel="noopener noreferrer"`. The test verifies the `javascript:`
-  protocol is rejected.
+- **Safe external links**: `isSafeUrl()` checks `URL.protocol ∈ [http:, https:]` and the `<a>` carries
+  `target="_blank" rel="noopener noreferrer"`. `mailto:`/`javascript:`/`data:`/`file:`/`ftp:`/malformed
+  schemes are rejected (never clickable, never rewritten). Covered by the record-detail URL-scheme matrix.
 - **Desktop row title cell**: the second `<td>` holds both `title` and `insight` in line-clamped
   spans; the sort test targets this cell for title text comparison (unique label).
 - **Test file naming**: `explorer.spec.tsx` aligns with Phases.md expected file `tests/explorer.spec.tsx`.
@@ -235,12 +264,12 @@ authoritative. Read them first in every new session.
 
 ## Known failures / issues
 
-- None.
+- None. Records-list API failures degrade gracefully by design (documented above; no list-level Retry control).
 
 ## Next allowed task
 
-- STOP. Await explicit user approval of Phase 5 closeout. Do NOT begin Phase 6.
+- STOP. Await explicit user approval of the Phase 5 closeout report. Do NOT begin Phase 6.
 
 ## Last verified commit
 
-- `a471d0b` — Phase 5 records explorer (feat + docs).
+- `a471d0b` — Phase 5 records explorer (feat + docs), plus closeout commit `fix(web): finalize records explorer safety and QA`.

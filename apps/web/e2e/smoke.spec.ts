@@ -9,7 +9,8 @@ async function consoleGuard(page: Page) {
   const problems: string[] = [];
   page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") problems.push(`console: ${message.text()}`);
+    if (message.type() === "error" || message.type() === "warning")
+      problems.push(`${message.type()}: ${message.text()}`);
   });
   return problems;
 }

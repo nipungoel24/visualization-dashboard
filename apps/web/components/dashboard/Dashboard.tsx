@@ -135,9 +135,13 @@ export function Dashboard() {
   const handleOpenRecord = useCallback(
     (id: string) => {
       if (filters.record === id) return;
-      update({ ...filters, record: id });
+      // Push so the browser Back/Forward can close and reopen the drawer while
+      // preserving filter/page/sort state.
+      const next = { ...filters, record: id };
+      const query = serializeFilterState(next);
+      router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
     },
-    [filters, update],
+    [filters, router, pathname],
   );
 
   const handleCloseRecord = useCallback(() => {

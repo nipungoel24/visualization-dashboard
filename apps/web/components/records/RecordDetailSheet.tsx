@@ -15,8 +15,8 @@ import {
 import type { RecordItem } from "@/lib/api";
 import { UNAVAILABLE_GLYPH, formatCount, formatSourceDate } from "@/lib/format";
 
-/** Scheme allow-list for external links (Rules R50): http/https/mailto only. */
-const SAFE_LINK_SCHEMES = ["http:", "https:", "mailto:"];
+/** Scheme allow-list for external links (Rules R50): http/https only. */
+const SAFE_LINK_SCHEMES = ["http:", "https:"];
 
 function isSafeUrl(value: string | null | undefined): value is string {
   if (value === null || value === undefined || value.trim() === "") return false;
