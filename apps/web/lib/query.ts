@@ -7,7 +7,7 @@
 
 import { QueryClient, keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ApiError, api, type FilterParams } from "./api";
-import { serializeFilterState, type FilterState } from "./filters";
+import { serializeFilterParams, type FilterState } from "./filters";
 
 let browserClient: QueryClient | undefined;
 
@@ -38,9 +38,18 @@ export function getQueryClient(): QueryClient {
 export const queryKeys = {
   meta: ["meta"] as const,
   ready: ["ready"] as const,
-  facets: (filters: FilterState) => ["facets", serializeFilterState(filters)] as const,
+  facets: (filters: FilterState) => ["facets", serializeFilterParams(filters)] as const,
   overview: (filters: FilterState) =>
-    ["overview", serializeFilterState(filters)] as const,
+    ["overview", serializeFilterParams(filters)] as const,
+  records: (
+    filters: FilterState,
+    sort: string,
+    order: string,
+    page: number,
+    pageSize: number,
+  ) =>
+    ["records", serializeFilterParams(filters), sort, order, page, pageSize] as const,
+  record: (id: string) => ["record", id] as const,
 };
 
 export function useMetaQuery() {
@@ -62,5 +71,34 @@ export function useOverviewQuery(filters: FilterState, params: FilterParams) {
   return useQuery({
     queryKey: queryKeys.overview(filters),
     queryFn: () => api.overview(params),
+  });
+}
+
+const DEFAULT_PAGE_SIZE = 25;
+
+export function useRecordsQuery(
+  filters: FilterState,
+  params: FilterParams,
+  opts: { sort: string; order: string; page: number; pageSize?: number },
+) {
+  const pageSize = opts.pageSize ?? DEFAULT_PAGE_SIZE;
+  return useQuery({
+    queryKey: queryKeys.records(filters, opts.sort, opts.order, opts.page, pageSize),
+    queryFn: () =>
+      api.records(params, {
+        page: opts.page,
+        pageSize,
+        sort: opts.sort,
+        order: opts.order,
+      }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useRecordQuery(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.record(id!),
+    queryFn: () => api.record(id!),
+    enabled: id !== null,
   });
 }

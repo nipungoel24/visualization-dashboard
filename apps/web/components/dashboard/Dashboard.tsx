@@ -28,8 +28,8 @@ import {
 import { FilterRail } from "../layout/FilterRail";
 import { FilterSheet } from "../layout/FilterSheet";
 import { Header } from "../layout/Header";
+import { RecordsExplorer } from "../records/RecordsExplorer";
 import { KpiStrip } from "./KpiStrip";
-import { RecordsPlaceholder } from "./RecordsPlaceholder";
 import { VisualizationSections } from "./VisualizationSections";
 import { ZeroResults } from "./ZeroResults";
 
@@ -83,7 +83,7 @@ export function Dashboard() {
       } else {
         next[field] = toggleValue(filters[field], String(value));
       }
-      update(next);
+      update({ ...next, page: 1 });
     },
     [filters, update],
   );
@@ -91,14 +91,14 @@ export function Dashboard() {
   const handleClearField = useCallback(
     (field: CategoricalField | YearField) => {
       if (filters[field].length === 0) return;
-      update({ ...filters, [field]: [] });
+      update({ ...filters, [field]: [], page: 1 });
     },
     [filters, update],
   );
 
   const handleMetricRange = useCallback(
     (metric: MetricName, min: number | null, max: number | null) => {
-      update({ ...filters, [`${metric}_min`]: min, [`${metric}_max`]: max });
+      update({ ...filters, [`${metric}_min`]: min, [`${metric}_max`]: max, page: 1 });
     },
     [filters, update],
   );
@@ -106,14 +106,43 @@ export function Dashboard() {
   const handleSearch = useCallback(
     (value: string) => {
       if (value === filters.q) return;
-      update({ ...filters, q: value });
+      update({ ...filters, q: value, page: 1 });
     },
     [filters, update],
   );
 
   const handleReset = useCallback(() => {
-    if (isEmptyState(filters)) return;
+    if (serializeFilterState(filters) === serializeFilterState(EMPTY_FILTERS)) return;
     update(EMPTY_FILTERS);
+  }, [filters, update]);
+
+  const handleSetPage = useCallback(
+    (page: number) => {
+      if (page === filters.page) return;
+      update({ ...filters, page });
+    },
+    [filters, update],
+  );
+
+  const handleSetSort = useCallback(
+    (sort: string, order: "asc" | "desc") => {
+      if (sort === filters.sort && order === filters.order) return;
+      update({ ...filters, sort, order, page: 1 });
+    },
+    [filters, update],
+  );
+
+  const handleOpenRecord = useCallback(
+    (id: string) => {
+      if (filters.record === id) return;
+      update({ ...filters, record: id });
+    },
+    [filters, update],
+  );
+
+  const handleCloseRecord = useCallback(() => {
+    if (!filters.record) return;
+    update({ ...filters, record: null });
   }, [filters, update]);
 
   const canonicalSectors = useCanonicalSectors(overview.data?.sectors.values);
@@ -180,9 +209,15 @@ export function Dashboard() {
                 canonicalSectors={canonicalSectors}
                 onToggle={handleToggle}
               />
-              <RecordsPlaceholder
+              <RecordsExplorer
+                filters={filters}
+                params={params}
                 total={overview.data?.summary.filtered_count}
                 isLoading={overview.isPending}
+                onChangePage={handleSetPage}
+                onChangeSort={handleSetSort}
+                onOpenRecord={handleOpenRecord}
+                onCloseRecord={handleCloseRecord}
               />
             </>
           )}

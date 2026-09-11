@@ -88,6 +88,45 @@ describe("toFilterParams", () => {
   });
 });
 
+describe("records list params (page / sort / order / record)", () => {
+  it("parses valid values from the URL", () => {
+    const state = parseFilterState("page=3&sort=intensity&order=desc");
+    expect(state.page).toBe(3);
+    expect(state.sort).toBe("intensity");
+    expect(state.order).toBe("desc");
+    expect(state.record).toBeNull();
+  });
+
+  it("falls back to defaults for missing or invalid values", () => {
+    const state = parseFilterState("page=0&page=abc&sort=not_sortable&order=sideways&record=bogus");
+    expect(state.page).toBe(1);
+    expect(state.sort).toBe("source_row_index");
+    expect(state.order).toBe("asc");
+    expect(state.record).toBeNull();
+  });
+
+  it("accepts only a full sha256 record id", () => {
+    const id = "f".repeat(64);
+    expect(parseFilterState(`record=${id}`).record).toBe(id);
+  });
+
+  it("round-trips page/sort/order/record through the full serializer", () => {
+    const id = "a".repeat(64);
+    const state = parseFilterState(`topic=oil&page=2&sort=topic&order=desc&record=${id}`);
+    expect(serializeFilterState(state)).toBe(`topic=oil&page=2&sort=topic&order=desc&record=${id}`);
+  });
+
+  it("omits default-valued list params from the URL (clean reset)", () => {
+    expect(serializeFilterState(parseFilterState("page=1&sort=source_row_index&order=asc"))).toBe("");
+  });
+
+  it("keeps list params out of filter-only params and the API filter tuple", () => {
+    const state = parseFilterState("page=2&sort=intensity&order=desc");
+    expect(toFilterParams(state)).toEqual([]);
+    expect(isEmptyState(state)).toBe(true);
+  });
+});
+
 describe("countActiveFilters / statesEqual", () => {
   it("counts every active selection", () => {
     const state = parseFilterState(

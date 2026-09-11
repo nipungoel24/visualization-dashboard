@@ -43,6 +43,10 @@ export interface FilterState {
   relevance_min: number | null;
   relevance_max: number | null;
   q: string;
+  page: number;
+  sort: string;
+  order: "asc" | "desc";
+  record: string | null;
 }
 
 export const EMPTY_FILTERS: FilterState = {
@@ -61,6 +65,10 @@ export const EMPTY_FILTERS: FilterState = {
   relevance_min: null,
   relevance_max: null,
   q: "",
+  page: 1,
+  sort: "source_row_index",
+  order: "asc",
+  record: null,
 };
 
 export const CATEGORICAL_FIELDS: readonly CategoricalField[] = [
@@ -130,6 +138,39 @@ function parseOptionalInt(value: string | null): number | null {
   return Number.isInteger(number) ? number : null;
 }
 
+const SORTABLE_FIELDS: readonly string[] = [
+  "source_row_index",
+  "end_year",
+  "start_year",
+  "intensity",
+  "likelihood",
+  "relevance",
+  "topic",
+  "sector",
+  "country",
+];
+
+function parsePage(value: string | null): number {
+  const n = parseOptionalInt(value);
+  return n !== null && n >= 1 ? n : 1;
+}
+
+function parseSort(value: string | null): string {
+  const raw = (value ?? "").trim();
+  return SORTABLE_FIELDS.includes(raw) ? raw : "source_row_index";
+}
+
+function parseOrder(value: string | null): "asc" | "desc" {
+  const raw = (value ?? "").trim().toLowerCase();
+  return raw === "desc" ? "desc" : "asc";
+}
+
+function parseRecordId(value: string | null): string | null {
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return /^[0-9a-f]{64}$/.test(trimmed) ? trimmed : null;
+}
+
 /** URL query string → typed filter state. Unknown params are ignored. */
 export function parseFilterState(search: string): FilterState {
   const params = new URLSearchParams(search);
@@ -149,11 +190,20 @@ export function parseFilterState(search: string): FilterState {
     relevance_min: parseOptionalInt(params.get("relevance_min")),
     relevance_max: parseOptionalInt(params.get("relevance_max")),
     q: (params.get("q") ?? "").trim(),
+    page: parsePage(params.get("page")),
+    sort: parseSort(params.get("sort")),
+    order: parseOrder(params.get("order")),
+    record: parseRecordId(params.get("record")),
   };
 }
 
-/** Typed filter state → canonical query string (stable field order). */
-export function serializeFilterState(state: FilterState): string {
+/**
+ * Canonical string for the filter dimensions only (topic…q), excluding the
+ * records-list params (page/sort/order) and the UI-only `record` param.
+ * Used as the query-key basis for facets/overview/records so pagination or
+ * record-detail changes never refetch the analytical queries.
+ */
+export function serializeFilterParams(state: FilterState): string {
   const params = new URLSearchParams();
   for (const field of CATEGORICAL_FIELDS) {
     for (const value of state[field]) params.append(field, value);
@@ -166,6 +216,20 @@ export function serializeFilterState(state: FilterState): string {
     if (value !== null) params.append(field, String(value));
   }
   if (state.q.trim() !== "") params.set("q", state.q.trim());
+  return params.toString();
+}
+
+/**
+ * Full canonical URL query string: filter dimensions plus the records-list
+ * params (`page`, `sort`, `order`) and the `record` param. This is what the
+ * address bar reflects.
+ */
+export function serializeFilterState(state: FilterState): string {
+  const params = new URLSearchParams(serializeFilterParams(state));
+  if (state.page > 1) params.set("page", String(state.page));
+  if (state.sort !== "source_row_index") params.set("sort", state.sort);
+  if (state.order !== "asc") params.set("order", state.order);
+  if (state.record) params.set("record", state.record);
   return params.toString();
 }
 
@@ -212,5 +276,5 @@ export function toggleValue<T extends string | number>(values: T[], value: T): T
 }
 
 export function statesEqual(a: FilterState, b: FilterState): boolean {
-  return serializeFilterState(a) === serializeFilterState(b);
+  return serializeFilterParams(a) === serializeFilterParams(b);
 }

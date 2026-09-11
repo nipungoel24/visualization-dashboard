@@ -254,6 +254,18 @@ export const api = {
   meta: () => request<MetaResponse>("/meta"),
   facets: (params: FilterParams) => request<FacetsResponse>("/facets", params),
   overview: (params: FilterParams) => request<OverviewResponse>("/overview", params),
-  records: (params: FilterParams) => request<RecordsPage>("/records", params),
+  records: (
+    params: FilterParams,
+    pagination?: { page?: number; pageSize?: number; sort?: string; order?: string },
+  ) => {
+    const all: FilterParams = [...params];
+    if (pagination) {
+      if (pagination.page && pagination.page > 1) all.push(["page", String(pagination.page)]);
+      if (pagination.pageSize) all.push(["page_size", String(pagination.pageSize)]);
+      if (pagination.sort) all.push(["sort", pagination.sort]);
+      if (pagination.order) all.push(["order", pagination.order]);
+    }
+    return request<RecordsPage>("/records", all);
+  },
   record: (id: string) => request<RecordItem>(`/records/${encodeURIComponent(id)}`),
 };
