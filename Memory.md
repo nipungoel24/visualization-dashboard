@@ -8,11 +8,11 @@ authoritative. Read them first in every new session.
 ## Project status
 
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
-- **Phase 4 — Production D3 Visualization System: IMPLEMENTED + VERIFIED 2026-09-10**
-  (vitest 80/80, Playwright real-API smoke 19/19 × 2 runs, lint/typecheck/build green,
-  backend regression 61 passed / 52 skipped). Phase 4 provisionally accepted.
-- Phase 0: **APPROVED**. Phase 1: **COMPLETE**. Phase 2: **APPROVED** (`ddc199d` + `be76739`).
-- Phase 3: **APPROVED** (`9cdc3d5`). Phase 5 (Records Explorer) is NOT authorized.
+- **Phase 5 — Records Explorer: IMPLEMENTED + VERIFIED 2026-09-11**
+  (ESLint 0, tsc 0, vitest 97/97, Playwright 28/28, backend 113/113, production build green).
+  Phase 5 provisionally accepted.
+- Phase 0–4: all **APPROVED** (`9400812` + `1a058db` for Phase 4 feat/docs).
+- Phase 6 (Testing, QA, Performance) is NOT authorized.
 
 ## Source dataset
 
@@ -119,32 +119,55 @@ authoritative. Read them first in every new session.
   - Tooling placement: `app/providers.tsx` added (QueryClient + Tooltip providers; not in
     the Architecture tree — single client boundary beside `page.tsx`).
 
-## Testing status (Phase 4 verification run, 2026-09-10, Mongo UP)
+## Testing status (Phase 5 verification run, 2026-09-11, Mongo UP)
 
-- Frontend unit/component (vitest 5.0.0, jsdom): **80 passed, 0 failed, 0 skipped** —
-  `filters.spec` (14), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
+- Frontend unit/component (vitest): **97 passed, 0 failed** —
+  `filters.spec` (19), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
   `treemap.spec` (3), `tooltip.spec` (3), `filter-ui.spec` (9), `dashboard-states.spec` (5),
-  `charts.spec` (12).
-- Playwright real-API smoke (`e2e/smoke.spec.ts`, Chromium, prod build + live backend):
-  **19 passed, 0 failed, 0 skipped** — unfiltered 1,000 + zero console errors; oil→403, +gas→492
-  (OR proven in browser); USA narrows to 51 (AND) with chip removal; refresh persistence;
-  reset→1,000; zero-result intentional state; outage interception → error UI (never fake
-  empty); 1024 rail + no overflow; 390 sheet open/filter/Escape + no overflow; reduced-motion
-  interaction intact; landscape bubble tap at mobile viewport; all nine D3 charts render with
-  real data and no placeholders; landscape bubble click → oil 403 (chip + URL agree); overlap
-  resolution (population center → population, oil center → oil); gas API cross-check + OR sum;
-  oil + USA = 51 across every surface; chart-originated filter survives refresh + removal
-  restores state; end-year bar click → 53 records; sector tile click → Energy records; zero
-  result keeps charts honest; filter stress produces no request storm or stuck tooltips or
-  bad SVG. Two consecutive passes for stability.
-- Frontend: `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0 (Next 16.3.3).
-- Backend regression (untouched in Phase 4): **113 passed, 0 failed, 0 skipped** with Mongo up
-  (`MONGODB_TEST_URI=mongodb://localhost:27017`). Breakdown: 61 unit tests (always run) +
-  52 integration tests (require `MONGODB_TEST_URI`; seeded into a throwaway `insightscope_test_api_*`
-  database per session). Previous Phase 2/3 baseline was also 113/113.
-- Final integrity: raw SHA `f45b67f7…aeb1744` unchanged; Mongo COUNT=1000; no `jsondata` /
-  `data/raw` strings in frontend source; no dataset JSON files under `apps/web`; no `.env`
-  committed; `test-results/` + `.next/` gitignored; working tree contains only Phase 4 files.
+  `charts.spec` (12), `explorer.spec` (7), `record-detail.spec` (4).
+- Playwright real-API E2E (`e2e/smoke.spec.ts` + `e2e/records.spec.ts`): **28 passed, 0 failed** —
+  smoke: 19; records: table render (1,000 + page 1/40 + no doc overflow), sort toggle (URL + reorder),
+  pagination (page=2 + URL + step back), filter resets page (oil→403 / page 1/17), row click→dialog
+  + `record=<sha256>`, deep-link `/?record=<id>`, keyboard Enter/Escape/focus-restore, mobile
+  card list (390 × 844, no table, paginated, no overflow), three-viewport document overflow audit
+  (360/834/1024).
+- Backend regression (untouched in Phase 5): **113 passed, 0 failed, 0 skipped** (Mongo UP).
+- Final: `pnpm lint` 0, `pnpm typecheck` 0, `pnpm build` clean, vitest 97, Playwright 28.
+
+## Phase 5 records-explorer decisions
+
+- **FilterState extension**: `page`, `sort`, `order`, `record` added to FilterState; `EMPTY_FILTERS`
+  includes `page:1, sort:"source_row_index", order:"asc", record:null`. Defaults omitted from
+  URL via `serializeFilterState()` to keep URLs clean.
+- **Dual serialization**: `serializeFilterParams()` returns a filter-only canonical string used
+  for React Query keys (facets, overview, records) so page/sort/record changes never refetch
+  analytics data. `serializeFilterState()` returns the full URL string (omits defaults) used
+  for the history replace and `statesEqual()` comparisons.
+- **Sortable whitelist**: `SORTABLE_FIELDS` in `lib/filters.ts` mirrors the backend whitelist;
+  `parseSort()` falls back to `"source_row_index"` if the value isn't in the set.
+- **Pagination defaults**: `useRecordsQuery` accepts `{ page?, pageSize?, sort?, order? }`
+  and defaults to `pageSize: 25` / `keepPreviousData` so new-page fetches show stale data
+  while loading rather than a skeleton flash.
+- **Desktop table**: rows are `<tr role="button" tabIndex={0}>` with `aria-label="Open record …"`;
+  Enter/Space dispatches to `onOpenRecord`. Header columns use `aria-sort` on the active column
+  and `SortButton` whose aria-label switches between `Sort by X` / `Sorted by X ascending/descending`.
+- **Mobile card list**: `RecordMobileItem` renders `<button>` with identical `aria-label` to
+  the desktop row. 25 items shown without virtualization (acceptable at page-size 25).
+- **Horizontal scroll**: desktop table wrapper gets `overflow-x-auto` and the `<table>` gets
+  `min-w-[760px]` so the table scrolls within the section, never at document level.
+- **Focus restoration**: Radix's built-in restore does not survive the Next soft-navigation
+  triggered by `router.replace` on record-close. Explicit `openTriggerRef` in RecordsExplorer
+  captures the `document.activeElement` on open; a `useEffect` restores it when `filters.record`
+  transitions non-null → null. The E2E keyboard test (`document.activeElement` poll) asserts this.
+- **RecordDetailSheet URL**: `record=<sha256>` is parsed by `parseRecordId()`; Radix Dialog is
+  rendered at all times with `open={recordId !== null}` so the sheet mounts/dismounts with URL state.
+  `onOpenChange(false)` dispatches `onCloseRecord()` → `filters.record: null`.
+- **Safe external links**: `isSafeUrl()` checks `URL.protocol ∈ [http:, https:, mailto:]` and the
+  `<a>` carries `target="_blank" rel="noopener noreferrer"`. The test verifies the `javascript:`
+  protocol is rejected.
+- **Desktop row title cell**: the second `<td>` holds both `title` and `insight` in line-clamped
+  spans; the sort test targets this cell for title text comparison (unique label).
+- **Test file naming**: `explorer.spec.tsx` aligns with Phases.md expected file `tests/explorer.spec.tsx`.
 
 ## Phase 4 D3 visualization decisions
 
@@ -186,7 +209,7 @@ authoritative. Read them first in every new session.
   html/body as belt-and-suspenders.
 - `SectionFrame` gets `scroll-mt-16` to prevent sticky header from covering chart tops.
 
-## UI skills actually invoked (Phase 3 + Phase 4)
+## UI skills actually invoked (Phase 3–5)
 
 - `npx ui-skills start` → categories → `list --category systems/accessibility` →
   `get nextlevelbuilder/ui-styling` (SUCCEEDED, content applied: radix+shadcn primitive
@@ -216,8 +239,8 @@ authoritative. Read them first in every new session.
 
 ## Next allowed task
 
-- STOP. Await explicit user approval of Phase 4 closeout commit. Do NOT begin Phase 5.
+- STOP. Await explicit user approval of Phase 5 closeout. Do NOT begin Phase 6.
 
 ## Last verified commit
 
-- `9cdc3d5` (Phase 3 shell). Phase 4 closeout commit pending.
+- `a471d0b` — Phase 5 records explorer (feat + docs).
