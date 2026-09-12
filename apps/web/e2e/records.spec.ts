@@ -297,6 +297,68 @@ test.describe("records explorer 1440×900", () => {
     expect(facetsUrls.length).toBe(facetsCountBefore);
   });
 
+  test("opening/closing a record does NOT refetch records list, overview, or facets", async ({
+    page,
+  }) => {
+    const recordsUrls: string[] = [];
+    const overviewUrls: string[] = [];
+    const facetsUrls: string[] = [];
+    page.on("request", (req) => {
+      const url = req.url();
+      if (url.includes("/api/v1/records") && !url.match(/\/records\/[0-9a-f]{64}/))
+        recordsUrls.push(url);
+      if (url.includes("/api/v1/overview")) overviewUrls.push(url);
+      if (url.includes("/api/v1/facets")) facetsUrls.push(url);
+    });
+
+    await page.goto("/");
+    const region = explorer(page);
+    await region.scrollIntoViewIfNeeded();
+    await expect(
+      region.getByText("Page 1 of 40").filter({ visible: true }),
+    ).toBeVisible();
+
+    const recordsCountBefore = recordsUrls.length;
+    const overviewCountBefore = overviewUrls.length;
+    const facetsCountBefore = facetsUrls.length;
+
+    // Open first record
+    await region.getByRole("button", { name: /Open record/ }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Record detail" });
+    await expect(dialog).toBeVisible();
+    await page.waitForTimeout(500);
+
+    // Only the detail request should have been made
+    expect(recordsUrls.length).toBe(recordsCountBefore);
+    expect(overviewUrls.length).toBe(overviewCountBefore);
+    expect(facetsUrls.length).toBe(facetsCountBefore);
+
+    // Close record
+    await dialog.getByRole("button", { name: "Close panel" }).click();
+    await expect(dialog).toBeHidden();
+    await page.waitForTimeout(500);
+
+    // No additional analytical requests
+    expect(recordsUrls.length).toBe(recordsCountBefore);
+    expect(overviewUrls.length).toBe(overviewCountBefore);
+    expect(facetsUrls.length).toBe(facetsCountBefore);
+
+    // Open another record
+    await region.getByRole("button", { name: /Open record/ }).nth(1).click();
+    const dialog2 = page.getByRole("dialog", { name: "Record detail" });
+    await expect(dialog2).toBeVisible();
+    await page.waitForTimeout(500);
+
+    // Only the new detail request
+    expect(recordsUrls.length).toBe(recordsCountBefore);
+    expect(overviewUrls.length).toBe(overviewCountBefore);
+    expect(facetsUrls.length).toBe(facetsCountBefore);
+
+    // Close it
+    await dialog2.getByRole("button", { name: "Close panel" }).click();
+    await expect(dialog2).toBeHidden();
+  });
+
   test("zero-result filter shows the zero-results panel, not broken state", async ({
     page,
   }) => {
@@ -306,7 +368,7 @@ test.describe("records explorer 1440×900", () => {
     await expect(userCount(page)).toContainText("0");
   });
 
-  test("records API failure: dashboard remains functional, records degrades gracefully", async ({
+  test("records API failure shows explicit error with Retry button, KPIs intact", async ({
     page,
   }) => {
     await page.goto("/");
@@ -324,9 +386,39 @@ test.describe("records explorer 1440×900", () => {
     );
     // Trigger a records reload by changing page
     await region.getByRole("button", { name: "Next page" }).click();
-    // Records degrades to empty state (no crash, no broken pagination)
-    await expect(region.getByText("No records match the current filters.")).toBeVisible();
+
+    // Records shows explicit error (NOT zero-results copy)
+    await expect(region.getByText("Records could not be loaded")).toBeVisible();
+    await expect(region.getByRole("button", { name: "Retry" })).toBeVisible();
     // Dashboard context remains: KPI still shows data
+    await expect(userCount(page)).toContainText("1,000");
+  });
+
+  test("records API failure: Retry button is accessible (keyboard + click)", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const region = explorer(page);
+    await region.scrollIntoViewIfNeeded();
+
+    // Fail records endpoint
+    await page.route(
+      new RegExp(`${API.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/api/v1/records`),
+      (route) =>
+        route.fulfill({ status: 500, body: '{"detail":"Internal Server Error"}' }),
+    );
+    // Trigger failure
+    await region.getByRole("button", { name: "Next page" }).click();
+    await expect(region.getByText("Records could not be loaded")).toBeVisible();
+    const retryBtn = region.getByRole("button", { name: "Retry" });
+    await expect(retryBtn).toBeVisible();
+
+    // Retry button is keyboard accessible
+    await retryBtn.focus();
+    await expect(retryBtn).toBeFocused();
+    // Click works without throwing
+    await retryBtn.click();
+    // KPI still intact
     await expect(userCount(page)).toContainText("1,000");
   });
 

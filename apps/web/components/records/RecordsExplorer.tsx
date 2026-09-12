@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, type KeyboardEvent } from "react";
 
+import { AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FilterParams, RecordItem } from "@/lib/api";
 import { UNAVAILABLE_GLYPH, formatCount } from "@/lib/format";
@@ -27,7 +29,6 @@ interface RecordsExplorerProps {
   filters: FilterState;
   params: FilterParams;
   total: number | undefined;
-  isLoading: boolean;
   onChangePage: (page: number) => void;
   onChangeSort: (sort: string, order: "asc" | "desc") => void;
   onOpenRecord: (id: string) => void;
@@ -169,6 +170,38 @@ function ArrowGlyph({ active, order }: { active: boolean; order: "asc" | "desc" 
   return <span aria-hidden="true">{order === "asc" ? "↑" : "↓"}</span>;
 }
 
+function RecordsError({
+  onRetry,
+}: {
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-8 text-center" role="alert">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-destructive/10">
+        <AlertCircle size={20} strokeWidth={1.75} className="text-destructive" aria-hidden="true" />
+      </span>
+      <div>
+        <h3 className="text-base font-semibold text-destructive">
+          Records could not be loaded
+        </h3>
+        <p className="mt-1 text-small text-foreground-muted">
+          The records service returned an error. KPIs and charts are unaffected.
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onRetry}
+        className="focus-visible:ring-2 focus-visible:ring-destructive"
+        aria-label="Retry loading records"
+      >
+        Retry
+      </Button>
+    </div>
+  );
+}
+
 function RecordMobileItem({
   record,
   onSelect,
@@ -218,7 +251,6 @@ export function RecordsExplorer({
   filters,
   params,
   total,
-  isLoading,
   onChangePage,
   onChangeSort,
   onOpenRecord,
@@ -281,6 +313,7 @@ export function RecordsExplorer({
   }, [filters.record]);
 
   const showSummary = totalVisible > 0;
+  const isRecordsLoading = query.isPending && items.length === 0;
 
   return (
     <section
@@ -304,7 +337,9 @@ export function RecordsExplorer({
       </div>
 
       <div className="mt-3">
-        {isLoading && totalVisible === 0 ? (
+        {query.isError ? (
+          <RecordsError onRetry={() => query.refetch()} />
+        ) : isRecordsLoading ? (
           <TableSkeleton />
         ) : items.length === 0 ? (
           <p className="py-8 text-center text-small text-foreground-muted">

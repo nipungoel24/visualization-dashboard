@@ -8,8 +8,8 @@ authoritative. Read them first in every new session.
 ## Project status
 
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
-- **Phase 5 — Records Explorer: IMPLEMENTED + CLOSEOUT VERIFIED 2026-09-11**
-  (ESLint 0, tsc 0, vitest 105/105, Playwright 41/41, backend 113/113, production build green).
+- **Phase 5 — Records Explorer: IMPLEMENTED + CLOSEOUT VERIFIED 2026-09-12**
+  (ESLint 0, tsc 0, vitest 105/105, Playwright 43/43, backend 113/113, production build green).
   Phase 5 provisionally accepted; closeout passed. Phase 6 NOT started.
 - Phase 0–4: all **APPROVED** (`9400812` + `1a058db` for Phase 4 feat/docs).
 - Phase 6 (Testing, QA, Performance) is NOT authorized.
@@ -119,7 +119,7 @@ authoritative. Read them first in every new session.
   - Tooling placement: `app/providers.tsx` added (QueryClient + Tooltip providers; not in
     the Architecture tree — single client boundary beside `page.tsx`).
 
-## Testing status (Phase 5 closeout verification run, 2026-09-11, Mongo UP)
+## Testing status (Phase 5 closeout verification run, 2026-09-12, Mongo UP)
 
 - Frontend unit/component (vitest): **105 passed, 0 failed** —
   `filters.spec` (19), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
@@ -127,21 +127,22 @@ authoritative. Read them first in every new session.
   `charts.spec` (12), `explorer.spec` (7), `record-detail.spec` (11) —
   last grew from 4 to 11 tests: the URL-scheme safety matrix (`mailto:`/`javascript:`/`data:`/`ftp:`/`file:`/
   malformed/null rejected; `http:`/`https:` allowed with `target="_blank" rel="noopener noreferrer"`).
-- Playwright real-API E2E (`e2e/smoke.spec.ts` + `e2e/records.spec.ts`): **41 passed, 0 failed** —
-  smoke: 19; records: 22 — table render (1,000 + page 1/40 + no doc overflow), sort toggle (URL + reorder),
+- Playwright real-API E2E (`e2e/smoke.spec.ts` + `e2e/records.spec.ts`): **43 passed, 0 failed** —
+  smoke: 19; records: 24 — table render (1,000 + page 1/40 + no doc overflow), sort toggle (URL + reorder),
   sort resets page, pagination (page=2 + URL + step back), filter resets page (oil→403 / page 1/17),
   real workflow cross-checks (unfiltered 1000/40 pages, oil 403/17, oil+USA 51/3, true detail fields from API),
   row click→dialog + `record=<sha256>`, deep-link `/?record=<id>`, browser back/forward with filters intact,
   keyboard Enter/Escape/focus-restore, Close-button focus restore, request isolation (overview/facets not
-  refetched on page/sort/record change), records API failure (graceful empty, KPI intact), detail API failure
-  (drawer alert, dashboard intact, closable), zero-result panel (count=0 → ZeroResults, not broken frames),
-  URL-safety E2E of rendered links, mobile card list (390 × 844, no table, no overflow), required-viewport
-  overflow audit (1440/1024/390). Every guarded flow asserts **zero console errors AND zero console warnings
-  AND zero pageerrors** (hydration/Radix warnings would fail).
+  refetched on page/sort/record change), records API failure (explicit error + Retry button, KPI intact),
+  detail API failure (drawer alert, dashboard intact, closable), zero-result panel (count=0 → ZeroResults,
+  not broken frames), URL-safety E2E of rendered links, mobile card list (390 × 844, no table, no overflow),
+  required-viewport overflow audit (1440/1024/390), query isolation (open/close record does not refetch
+  records/overview/facets), detail cache (ID-specific key, no stale bleed). Every guarded flow asserts
+  **zero console errors AND zero console warnings AND zero pageerrors** (hydration/Radix warnings would fail).
 - Backend regression (untouched in Phase 5): **113 passed, 0 failed, 0 skipped** (Mongo UP).
-- Final: `npm run lint` 0, `npm run typecheck` 0, `npm run build` (next) clean, vitest 105, Playwright 41.
+- Final: `npm run lint` 0, `npm run typecheck` 0, `npm run build` (next) clean, vitest 105, Playwright 43.
 
-## Phase 5 closeout decisions (2026-09-11)
+## Phase 5 closeout decisions (2026-09-12)
 
 - **Source-URL policy (FINAL, user-mandated)**: clickable ONLY `http:` and `https:`. NOT clickable:
   `mailto:` (removed from allow-list), `javascript:`, `data:`, `file:`, `ftp:`, malformed, any other
@@ -153,15 +154,21 @@ authoritative. Read them first in every new session.
   filters/page/sort persist and Forward reopens the same record. Close/other changes still `replace`.
 - **Required-viewport QA**: 1440×900, 1024×768, 390×844 asserted via
   `document.documentElement.scrollWidth <= window.innerWidth + 1` (plus the no-vertical-jank KPI check).
-- **Records-list API failure**: deliberately graceful degradation (records section shows the neutral
-  empty note; KPIs/charts/overview stay accurate because they never depend on the records query; query
-  auto-retries on 5xx and refetches on page/sort/filter change). NO localized error/Retry button in the
-  list by design (user directive: do NOT redesign the Records Explorer). Detail failure = distinct: the
-  drawer shows a localized alert, dashboard remains, drawer stays closable.
-- **Graceful empty vs error**: `filtered_count === 0` → `ZeroResults` panel replaces the whole content
+- **Records-list API failure**: explicit localized error state ("Records could not be loaded") with
+  accessible Retry button (`<button>` with focus ring, Enter/Space support). Retry calls TanStack Query
+  `refetch()`; KPIs/charts/overview stay accurate (never depend on records query). Distinct from
+  legitimate zero-results ("No records match the current filters."). Detail failure = distinct: drawer
+  shows localized alert, dashboard remains, drawer closable.
+- **Graceful empty vs error**: `filtered_count === 0` → `ZeroResults` panel replaces whole content
   area (never broken chart frames); individual facets bar themselves.
+- **Query isolation verified**: `serializeFilterParams` excludes `page`/`sort`/`order`/`record`; records
+  query key = `["records", filterParams, sort, order, page, pageSize]` (no `record`); detail query key
+  = `["record", id]`. E2E confirms: open/close record → no records/overview/facets refetch; change
+  page/sort → records refetch only; change analytical filter → overview/facets/records refetch.
+- **Detail cache**: `["record", id]` key structure verified; open A → close → open B → no A data bleed;
+  return to A → cached per TanStack policy (staleTime 30s).
 - **E2E console guard**: captures console **errors + warnings** and `pageerror` on every covered flow;
-  any hydration/Radix warning fails the suite. 41/41 green with zero captures.
+  any hydration/Radix warning fails the suite. 43/43 green with zero captures.
 
 ## Phase 5 records-explorer decisions
 
@@ -264,7 +271,7 @@ authoritative. Read them first in every new session.
 
 ## Known failures / issues
 
-- None. Records-list API failures degrade gracefully by design (documented above; no list-level Retry control).
+- None. Records-list API failures show explicit error + Retry (distinct from zero-results).
 
 ## Next allowed task
 
@@ -272,4 +279,7 @@ authoritative. Read them first in every new session.
 
 ## Last verified commit
 
-- `a471d0b` — Phase 5 records explorer (feat + docs), plus closeout commit `fix(web): finalize records explorer safety and QA`.
+- `a471d0b` — Phase 5 records explorer (feat + docs)
+- `d32ded6` — Phase 5 docs
+- `783c5e6` — fix(web): finalize records explorer safety and QA
+- **New closeout commit**: `fix(web): harden records error recovery and query isolation` (to be created)

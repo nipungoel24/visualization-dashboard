@@ -78,7 +78,6 @@ describe("RecordsExplorer", () => {
         filters={overrides.filters ?? parseFilterState("")}
         params={[]}
         total={overrides.total ?? 1}
-        isLoading={overrides.loading ?? false}
         onChangePage={handlers.onChangePage}
         onChangeSort={handlers.onChangeSort}
         onOpenRecord={handlers.onOpenRecord}

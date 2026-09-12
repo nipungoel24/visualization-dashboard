@@ -217,7 +217,6 @@ export function Dashboard() {
                 filters={filters}
                 params={params}
                 total={overview.data?.summary.filtered_count}
-                isLoading={overview.isPending}
                 onChangePage={handleSetPage}
                 onChangeSort={handleSetSort}
                 onOpenRecord={handleOpenRecord}
