@@ -43,13 +43,13 @@ function landscape(page: Page) {
 }
 
 /**
- * Click a landscape bubble via Delaunay resolution. We use keyboard Enter
- * on the focused <g> element to trigger the filter, proving the full
- * Delaunay → onToggleTopic path works end-to-end. No force.
+ * Click a landscape bubble via Delaunay resolution on the SVG.
+ * This uses the native SVG click listener with Delaunay resolution,
+ * which is the same path used by real mouse clicks.
  */
 async function clickLandscapeTopic(page: Page, topic: string) {
   await landscape(page).scrollIntoViewIfNeeded();
-  const btn = landscape(page).getByRole("button", { name: new RegExp(`^${topic},`) }).first();
+  const btn = landscape(page).getByRole("option", { name: new RegExp(`^${topic},`) }).first();
   await btn.waitFor({ state: "attached" });
   const coords = await btn.evaluate((el) => {
     const circle = el.querySelector("circle");
@@ -84,7 +84,8 @@ test.describe("dashboard smoke against the real API", () => {
     const facetsSettled = page.waitForResponse(
       (response) => response.url().includes("/api/v1/facets") && response.ok(),
     );
-    await page.getByRole("option", { name: "oil, 403 records" }).click();
+    // Scope to popover content to avoid conflict with chart marks
+    await page.locator('[data-radix-popper-content-wrapper]').getByRole("option", { name: "oil, 403 records" }).click();
     await facetsSettled;
     await expect(page.getByLabel("Summary metrics", { exact: true })).toContainText("403");
     expect(page.url()).toContain("topic=oil");
@@ -93,7 +94,7 @@ test.describe("dashboard smoke against the real API", () => {
     // The multi-select popover stays open after a pick, so a second value is
     // selected without reopening.
     await page.getByRole("combobox", { name: "Search Topic options" }).fill("gas");
-    const gasOption = page.getByRole("option", { name: "gas, 89 records" });
+    const gasOption = page.locator('[data-radix-popper-content-wrapper]').getByRole("option", { name: "gas, 89 records" });
     await expect(gasOption).toBeVisible();
     await gasOption.click();
     await expect(page.getByLabel("Summary metrics", { exact: true })).toContainText("492");
@@ -264,8 +265,8 @@ test.describe("phase 4 visualizations against the real API", () => {
     await expect(page.getByLabel("Summary metrics", { exact: true })).toContainText("403");
     expect(page.url()).toContain("topic=oil");
     await expect(page.getByLabel("Active filters", { exact: true })).toContainText("Topic: oil");
-    const oilG = landscape(page).getByRole("button", { name: /^oil, 403 records/ }).first();
-    await expect(oilG).toHaveAttribute("aria-pressed", "true");
+    const oilG = landscape(page).getByRole("option", { name: /^oil, 403 records/ }).first();
+    await expect(oilG).toHaveAttribute("aria-selected", "true");
     await assertNoBadSvg(page);
     expect(problems).toEqual([]);
   });
@@ -335,8 +336,8 @@ test.describe("phase 4 visualizations against the real API", () => {
 
     await page.reload();
     await expect(page.getByLabel("Summary metrics", { exact: true })).toContainText("403");
-    const oilG = landscape(page).getByRole("button", { name: /^oil, 403 records/ }).first();
-    await expect(oilG).toHaveAttribute("aria-pressed", "true");
+    const oilG = landscape(page).getByRole("option", { name: /^oil, 403 records/ }).first();
+    await expect(oilG).toHaveAttribute("aria-selected", "true");
 
     await clickLandscapeTopic(page, "oil");
     await expect(page.getByLabel("Summary metrics", { exact: true })).toContainText("1,000");
@@ -351,7 +352,7 @@ test.describe("phase 4 visualizations against the real API", () => {
     // Click the 2017 year bar in End-Year Outlook
     const yearRegion = page.getByRole("region", { name: "End-Year Outlook" });
     await yearRegion.scrollIntoViewIfNeeded();
-    const yearBar = yearRegion.getByRole("button", { name: /2017,/ }).first();
+    const yearBar = yearRegion.getByRole("option", { name: /2017,/ }).first();
     await expect(yearBar).toBeVisible();
     await yearBar.click();
     await expect(page.getByLabel("Summary metrics", { exact: true })).toContainText("53");
@@ -361,7 +362,7 @@ test.describe("phase 4 visualizations against the real API", () => {
     await page.goto("/");
     const sectorRegion = page.getByRole("region", { name: "Sector Composition" });
     await sectorRegion.scrollIntoViewIfNeeded();
-    const energyTile = sectorRegion.getByRole("button", { name: /Energy,/ }).first();
+    const energyTile = sectorRegion.getByRole("option", { name: /Energy,/ }).first();
     await expect(energyTile).toBeVisible();
     await energyTile.click();
     const energyValues = await kpiValues(page);

@@ -133,7 +133,8 @@ test.describe("records explorer 1440×900", () => {
 
     await page.getByRole("button", { name: "Filter by Topic" }).click();
     await page.getByRole("combobox", { name: "Search Topic options" }).fill("oil");
-    await page.getByRole("option", { name: "oil, 403 records" }).click();
+    // Scope to popover content to avoid conflict with chart marks
+    await page.locator('[data-radix-popper-content-wrapper]').getByRole("option", { name: "oil, 403 records" }).click();
 
     await expect(page).toHaveURL((url) => !url.searchParams.has("page"));
     await expect(userCount(page)).toContainText("403");

@@ -2,7 +2,7 @@
 
 import { ascending, max } from "d3-array";
 import { scaleBand, scaleLinear } from "d3-scale";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ChartTooltip } from "@/components/charts/ChartTooltip";
 import { useChartSize } from "@/components/charts/useChartSize";
@@ -28,6 +28,7 @@ interface EndYearChartProps {
  */
 export function EndYearChart({ values, selected, onToggleYear }: EndYearChartProps) {
   const [containerRef, { width }] = useChartSize<HTMLDivElement>();
+  const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<{ year: number; x: number; y: number } | null>(null);
 
   const compact = width > 0 && width < 480;
@@ -39,7 +40,7 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
     [values],
   );
 
-  const { handleKeyDown, tabIndexFor, setActiveIndex } = useRovingFocus(
+  const { activeIndex, handleKeyDown, svgRef: rovingSvgRef } = useRovingFocus(
     years.length,
     (index) => onToggleYear(years[index].year),
   );
@@ -64,6 +65,11 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
   // Mobile: label roughly every Nth bar so text never collides; all bars stay.
   const tickStep = Math.max(1, Math.ceil(years.length / (compact ? 8 : 25)));
 
+  // Sync the roving focus SVG ref (must be before early return for hook order)
+  useEffect(() => {
+    rovingSvgRef.current = svgRef.current;
+  }, [rovingSvgRef, svgRef]);
+
   if (width === 0 || plotW <= 0 || plotH <= 0) {
     return <div ref={containerRef} className="h-56 w-full" aria-hidden="true" />;
   }
@@ -83,12 +89,17 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
   return (
     <div ref={containerRef} className="relative w-full">
       <svg
-        role="img"
+        ref={svgRef}
+        role="listbox"
         data-roving-root
-        aria-label={`End-year distribution: ${years.length} supplied year values, bars show record counts. Select a year to filter the dashboard.`}
+        aria-label={`End-year distribution: ${years.length} supplied year values, bars show record counts. Use arrow keys to navigate, Enter to filter.`}
+        aria-activedescendant={years[activeIndex] ? `mark-${years[activeIndex].year}` : undefined}
         width={width}
         height={height}
         className="block overflow-visible"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        style={{ outline: "none" }}
       >
         {yTicks.map((tick) => (
           <g key={tick}>
@@ -118,45 +129,42 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
           const x = margin.left + (xScale(String(entry.year)) ?? 0);
           const y = margin.top + yScale(entry.count);
           const isSelected = selected.has(entry.year);
+          const isActive = index === activeIndex;
+          const markId = `mark-${entry.year}`;
           return (
-<g
-                key={entry.year}
-                data-mark-index={index}
-                role="button"
-                tabIndex={tabIndexFor(index)}
-                aria-label={`${entry.year}, ${formatCount(entry.count)} records${isSelected ? ", selected. Press Enter to remove the filter." : ". Press Enter to filter."}`}
-                aria-pressed={isSelected}
-                className="cursor-pointer outline-none"
-                onMouseEnter={() => setTooltip({ year: entry.year, x: x + barW / 2, y })}
-                onMouseLeave={() => setTooltip(null)}
-                onFocus={() => {
-                  setActiveIndex(index);
-                  setTooltip({ year: entry.year, x: x + barW / 2, y });
-                }}
-                onBlur={() => setTooltip(null)}
+            <g
+              key={entry.year}
+              data-mark-index={index}
+              data-testid="mark"
+              id={markId}
+              role="option"
+              aria-label={`${entry.year}, ${formatCount(entry.count)} records${isSelected ? ", selected. Press Enter to remove the filter." : ". Press Enter to filter."}`}
+              aria-selected={isSelected}
+              className="cursor-pointer outline-none"
+              onMouseEnter={() => setTooltip({ year: entry.year, x: x + barW / 2, y })}
+              onMouseLeave={() => setTooltip(null)}
+              onClick={() => onToggleYear(entry.year)}
+            >
+              <rect
+                x={x - 6}
+                y={margin.top}
+                width={barW + 12}
+                height={plotH}
+                fill="transparent"
                 onClick={() => onToggleYear(entry.year)}
-                onKeyDown={(event) => handleKeyDown(event, index)}
-              >
-                <rect
-                  x={x - 6}
-                  y={margin.top}
-                  width={barW + 12}
-                  height={plotH}
-                  fill="transparent"
-                  onClick={() => onToggleYear(entry.year)}
-                />
-                <rect
-                  x={x}
-                  y={y}
-                  width={Math.max(barW, 3)}
-                  height={Math.max(barH, entry.count > 0 ? 2 : 0)}
-                  rx={2}
-                  fill="var(--primary)"
-                  fillOpacity={isSelected ? 1 : 0.78}
-                  stroke={isSelected ? "var(--highlight)" : "none"}
-                  strokeWidth={isSelected ? 2 : 0}
-                  onClick={() => onToggleYear(entry.year)}
-                />
+              />
+              <rect
+                x={x}
+                y={y}
+                width={Math.max(barW, 3)}
+                height={Math.max(barH, entry.count > 0 ? 2 : 0)}
+                rx={2}
+                fill="var(--primary)"
+                fillOpacity={isSelected ? 1 : 0.78}
+                stroke={isActive ? "var(--foreground)" : isSelected ? "var(--highlight)" : "none"}
+                strokeWidth={isActive ? 2 : isSelected ? 2 : 0}
+                onClick={() => onToggleYear(entry.year)}
+              />
               {index % tickStep === 0 && (
                 <text
                   x={x + barW / 2}

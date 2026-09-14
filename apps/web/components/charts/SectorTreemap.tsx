@@ -1,7 +1,7 @@
 "use client";
 
 import { scaleLinear } from "d3-scale";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ChartTooltip } from "@/components/charts/ChartTooltip";
 import { useChartSize } from "@/components/charts/useChartSize";
@@ -35,15 +35,21 @@ function heatColor(avg: number | null): string {
  */
 export function SectorTreemap({ sectors, selected, onToggleSector }: SectorTreemapProps) {
   const [containerRef, { width }] = useChartSize<HTMLDivElement>();
+  const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<{ sector: string; x: number; y: number } | null>(null);
 
   const height = width === 0 ? 0 : Math.round(Math.min(Math.max(width * 0.52, 220), 320));
   const tiles = useMemo(() => layoutTreemap(sectors, width, height), [sectors, width, height]);
 
-  const { handleKeyDown, tabIndexFor, setActiveIndex } = useRovingFocus(
+  const { activeIndex, handleKeyDown, svgRef: rovingSvgRef } = useRovingFocus(
     tiles.length,
     (index) => onToggleSector(tiles[index].sector),
   );
+
+  // Sync the roving focus SVG ref (must be before early return for hook order)
+  useEffect(() => {
+    rovingSvgRef.current = svgRef.current;
+  }, [rovingSvgRef, svgRef]);
 
   if (width === 0 || height === 0) {
     return <div ref={containerRef} className="h-64 w-full" aria-hidden="true" />;
@@ -64,36 +70,38 @@ export function SectorTreemap({ sectors, selected, onToggleSector }: SectorTreem
   return (
     <div ref={containerRef} className="relative w-full">
       <svg
-        role="img"
+        ref={svgRef}
+        role="listbox"
         data-roving-root
-        aria-label={`Sector treemap: ${tiles.length} sectors sized by record count and shaded by average intensity. Select a sector to filter the dashboard.`}
+        aria-label={`Sector treemap: ${tiles.length} sectors sized by record count and shaded by average intensity. Use arrow keys to navigate, Enter to filter.`}
+        aria-activedescendant={tiles[activeIndex] ? `mark-${tiles[activeIndex].sector}` : undefined}
         width={width}
         height={height}
         className="block"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        style={{ outline: "none" }}
       >
         {tiles.map((tile, index) => {
           const isSelected = selected.has(tile.sector);
           const fits = tileFitsLabel(tile);
+          const isActive = index === activeIndex;
+          const markId = `mark-${tile.sector}`;
           return (
             <g
               key={tile.sector}
               data-mark-index={index}
-              role="button"
-              tabIndex={tabIndexFor(index)}
+              data-testid="mark"
+              id={markId}
+              role="option"
               aria-label={`${tile.sector}, ${formatCount(tile.record_count)} records, average intensity ${formatAverage(tile.avg_intensity)}${isSelected ? ", selected. Press Enter to remove the filter." : ". Press Enter to filter."}`}
-              aria-pressed={isSelected}
+              aria-selected={isSelected}
               className="cursor-pointer outline-none"
               onMouseEnter={() =>
                 setTooltip({ sector: tile.sector, x: (tile.x0 + tile.x1) / 2, y: tile.y0 })
               }
               onMouseLeave={() => setTooltip(null)}
-              onFocus={() => {
-                setActiveIndex(index);
-                setTooltip({ sector: tile.sector, x: (tile.x0 + tile.x1) / 2, y: tile.y0 });
-              }}
-              onBlur={() => setTooltip(null)}
               onClick={() => onToggleSector(tile.sector)}
-              onKeyDown={(event) => handleKeyDown(event, index)}
             >
               <rect
                 x={tile.x0}
@@ -103,9 +111,8 @@ export function SectorTreemap({ sectors, selected, onToggleSector }: SectorTreem
                 rx={4}
                 fill={heatColor(tile.avg_intensity)}
                 fillOpacity={0.88}
-                stroke={isSelected ? "var(--highlight)" : "var(--surface)"}
-                strokeWidth={isSelected ? 2.5 : 2}
-                onClick={() => onToggleSector(tile.sector)}
+                stroke={isActive ? "var(--foreground)" : isSelected ? "var(--highlight)" : "var(--surface)"}
+                strokeWidth={isActive ? 2.5 : isSelected ? 2.5 : 2}
               />
               {fits && (
                 <text

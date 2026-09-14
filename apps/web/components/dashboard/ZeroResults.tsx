@@ -23,7 +23,7 @@ export function ZeroResults({ onReset }: ZeroResultsProps) {
         The current selection returns zero records. Broadening a dimension or clearing the
         search usually restores the signal.
       </p>
-      <Button type="button" variant="default" size="sm" className="mt-2" onClick={onReset}>
+      <Button type="button" variant="outline" size="sm" className="mt-2" onClick={onReset}>
         Reset filters
       </Button>
     </div>

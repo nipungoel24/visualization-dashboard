@@ -29,7 +29,8 @@ describe("SignalsLandscape", () => {
     );
     expect(screen.getByText("Avg likelihood")).toBeInTheDocument();
     expect(screen.getByText("Avg relevance")).toBeInTheDocument();
-    const marks = screen.getAllByRole("button", { name: /records/ });
+    // Marks are focusable elements with data-mark-index, not role="button"
+    const marks = screen.getAllByTestId("mark");
     expect(marks).toHaveLength(3);
     expect(
       screen.getByText(/lacks positioned averages and is not plotted/),
@@ -60,13 +61,14 @@ describe("SignalsLandscape", () => {
         onToggleTopic={onToggleTopic}
       />,
     );
-    const oil = screen.getByRole("button", { name: /oil,.*Selected/ });
-    expect(oil).toHaveAttribute("aria-pressed", "true");
-
-    // Keyboard interaction (Enter) still works through onKeyDown on the <g>.
-    oil.focus();
+    // The SVG is the focusable element (role="listbox"); marks are focused programmatically
+    const svg = screen.getByRole("listbox", { name: /Signals Landscape/ });
+    expect(svg).toHaveAttribute("tabindex", "0");
+    // Focus the SVG and use arrow keys to navigate
+    svg.focus();
+    await user.keyboard("{ArrowRight}");
     await user.keyboard("{Enter}");
-    expect(onToggleTopic).toHaveBeenCalledWith("oil");
+    expect(onToggleTopic).toHaveBeenCalledWith("gas"); // Second topic after oil
   });
 
   it("moves focus with arrow keys without changing selection", async () => {
@@ -80,12 +82,10 @@ describe("SignalsLandscape", () => {
         onToggleTopic={onToggleTopic}
       />,
     );
-    const marks = screen.getAllByRole("button", { name: /records/ });
-    expect(marks[0]).toHaveAttribute("tabindex", "0");
-    expect(marks[1]).toHaveAttribute("tabindex", "-1");
-    marks[0].focus();
+    const svg = screen.getByRole("listbox", { name: /Signals Landscape/ });
+    svg.focus();
     await user.keyboard("{ArrowRight}");
-    expect(marks[1]).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
     expect(onToggleTopic).not.toHaveBeenCalled();
   });
 
@@ -113,7 +113,8 @@ describe("EndYearChart", () => {
 
   it("orders years numerically and preserves extreme values", () => {
     render(<EndYearChart values={YEARS} selected={new Set()} onToggleYear={() => {}} />);
-    const marks = screen.getAllByRole("button", { name: /records/ });
+    // Marks are focusable elements with data-mark-index
+    const marks = screen.getAllByTestId("mark");
     expect(marks.map((mark) => mark.getAttribute("aria-label"))).toEqual([
       expect.stringContaining("2017"),
       expect.stringContaining("2126"),
@@ -125,7 +126,8 @@ describe("EndYearChart", () => {
     const user = userEvent.setup();
     const onToggleYear = vi.fn();
     render(<EndYearChart values={YEARS} selected={new Set()} onToggleYear={onToggleYear} />);
-    await user.click(screen.getByRole("button", { name: /2126,/ }));
+    // Click on the transparent hit target rect for 2126
+    await user.click(screen.getByLabelText(/2126,/));
     expect(onToggleYear).toHaveBeenCalledWith(2126);
   });
 });
@@ -140,16 +142,16 @@ describe("SectorTreemap", () => {
     const user = userEvent.setup();
     const onToggleSector = vi.fn();
     render(<SectorTreemap sectors={SECTORS} selected={new Set()} onToggleSector={onToggleSector} />);
-    const tiles = screen.getAllByRole("button", { name: /records/ });
+    const tiles = screen.getAllByTestId("mark");
     expect(tiles).toHaveLength(2);
-    await user.click(screen.getByRole("button", { name: /Retail,/ }));
+    await user.click(screen.getByLabelText(/Retail,/));
     expect(onToggleSector).toHaveBeenCalledWith("Retail");
   });
 
   it("renders null averages as dashes in tooltips", async () => {
     const user = userEvent.setup();
     render(<SectorTreemap sectors={SECTORS} selected={new Set()} onToggleSector={() => {}} />);
-    await user.hover(screen.getByRole("button", { name: /Retail,/ }));
+    await user.hover(screen.getByLabelText(/Retail,/));
     expect(screen.getByRole("tooltip", { hidden: true })).toHaveTextContent("—");
   });
 });

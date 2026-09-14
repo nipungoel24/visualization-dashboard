@@ -101,7 +101,7 @@ export function SignalsLandscape({
     [positioned],
   );
 
-  const { handleKeyDown, tabIndexFor, setActiveIndex } = useRovingFocus(
+  const { activeIndex, handleKeyDown, svgRef: rovingSvgRef } = useRovingFocus(
     ordered.length,
     (index) => onToggleTopic(ordered[index].topic),
   );
@@ -190,6 +190,13 @@ export function SignalsLandscape({
     };
   }, [rendered]);
 
+  // Sync the roving focus SVG ref
+  useEffect(() => {
+    if (rovingSvgRef.current) {
+      rovingSvgRef.current = svgRef.current;
+    }
+  }, [rovingSvgRef, svgRef]);
+
   const legendSectors = useMemo(() => {
     const present = new Map<string, number>();
     for (const point of positioned) {
@@ -222,13 +229,16 @@ export function SignalsLandscape({
     <div ref={containerRef} className="relative w-full">
       <svg
         ref={svgRef}
-        role="img"
+        role="listbox"
+        aria-label={`Signals Landscape: ${ordered.length} topics positioned by average likelihood (horizontal, 1 to 4) and average relevance (vertical, 1 to 6). Bubble area represents average intensity. Use arrow keys to navigate, Enter to filter.`}
+        aria-activedescendant={ordered[activeIndex]?.topic ? `mark-${ordered[activeIndex].topic}` : undefined}
         data-roving-root
-        aria-label={`Signals Landscape: ${ordered.length} topics positioned by average likelihood (horizontal, 1 to 4) and average relevance (vertical, 1 to 6). Bubble area represents average intensity. Select a topic to filter the dashboard.`}
         width={width}
         height={height}
         className="block"
-        style={{ pointerEvents: "all" }}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        style={{ pointerEvents: "all", outline: "none" }}
       >
         {TICKS_Y.map((tick) => (
           <g key={tick}>
@@ -296,22 +306,18 @@ export function SignalsLandscape({
           const cy = margin.top + yScale(point.yValue) + point.dy;
           const isSelected = selected.has(point.topic);
           const color = sectorColor(point.dominant_sector, canonicalSectors);
+          const isActive = index === activeIndex;
+          const markId = `mark-${point.topic}`;
           return (
             <g
               key={point.topic}
               data-mark-index={index}
-              role="button"
-              tabIndex={tabIndexFor(index)}
+              data-testid="mark"
+              id={markId}
+              role="option"
               aria-label={markLabel(point, isSelected)}
-              aria-pressed={isSelected}
+              aria-selected={isSelected}
               className="cursor-pointer outline-none"
-              pointerEvents="none"
-              onFocus={() => {
-                setActiveIndex(index);
-                setTooltip({ topic: point.topic, x: cx, y: cy });
-              }}
-              onBlur={() => setTooltip(null)}
-              onKeyDown={(event) => handleKeyDown(event, index)}
             >
               <circle
                 cx={cx}
@@ -323,6 +329,7 @@ export function SignalsLandscape({
                 strokeWidth={isSelected ? 2.5 : 1}
                 className={cn(
                   "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                  isActive && "stroke-foreground stroke-2",
                   highlighted === point.topic && "scale-[1.15]",
                 )}
                 style={{ transformBox: "fill-box", transformOrigin: "center" }}

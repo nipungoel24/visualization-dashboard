@@ -55,6 +55,7 @@ export function RankingChart({
   const { handleKeyDown, tabIndexFor, setActiveIndex } = useRovingFocus(
     rows.length,
     (index) => onToggle(rows[index].key),
+    { mode: "buttons" }
   );
 
   const maxCount = rows.reduce((max, row) => Math.max(max, row.count), 0);
