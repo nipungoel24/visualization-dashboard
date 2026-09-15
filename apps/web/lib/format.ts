@@ -22,6 +22,10 @@ export function formatPercentage(value: number | null | undefined): string {
   return `${value.toFixed(1)}%`;
 }
 
+export function round(value: number, digits = 2): number {
+  return Number(value.toFixed(digits));
+}
+
 const SOURCE_DATE_PATTERN =
   /^([A-Za-z]+),\s*(\d{1,2})\s+(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/;
 

@@ -3,13 +3,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from app.db import get_database
-from app.filters import FilterSpec, parse_filters
+from app.filters import FilterSpec, parse_facets_filters
 from app.schemas import FacetsResponse
 from app.services import get_facets
 
 router = APIRouter(prefix="/api/v1", tags=["facets"])
 
-FilterDep = Annotated[FilterSpec, Depends(parse_filters)]
+FilterDep = Annotated[FilterSpec, Depends(parse_facets_filters)]
 
 
 @router.get("/facets", response_model=FacetsResponse)

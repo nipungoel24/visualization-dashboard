@@ -15,34 +15,57 @@ export interface YearDatum {
   count: number;
 }
 
+interface NotSpecifiedDatum {
+  year: "not_specified";
+  count: number;
+}
+
 interface EndYearChartProps {
   values: YearDatum[];
+  notSpecified: NotSpecifiedDatum | null;
   selected: ReadonlySet<number>;
   onToggleYear: (year: number) => void;
 }
 
+type ChartEntry = YearDatum | NotSpecifiedDatum;
+
 /**
  * End-Year Outlook: categorical bars over the supplied year values
  * (D3 band scale — never a continuous 2016→2200 axis). Extreme values like
- * 2126 and 2200 render as their own bars. Bar height = record count.
+ * 2126 and 2200 render as their own bars. Includes a "Not specified" category
+ * for records with missing end_year. Bar height = record count.
  */
-export function EndYearChart({ values, selected, onToggleYear }: EndYearChartProps) {
+export function EndYearChart({ values, notSpecified, selected, onToggleYear }: EndYearChartProps) {
   const [containerRef, { width }] = useChartSize<HTMLDivElement>();
   const svgRef = useRef<SVGSVGElement>(null);
-  const [tooltip, setTooltip] = useState<{ year: number; x: number; y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ year: number | "not_specified"; x: number; y: number } | null>(null);
 
   const compact = width > 0 && width < 480;
   const height = width === 0 ? 0 : compact ? 220 : 260;
   const margin = { top: 8, right: 8, bottom: 30, left: 36 };
 
-  const years = useMemo(
+  const yearEntries = useMemo(
     () => [...values].sort((a, b) => ascending(a.year, b.year)),
     [values],
   );
 
+  // Combine year entries with "Not specified" at the end
+  const allEntries = useMemo((): ChartEntry[] => {
+    const entries: ChartEntry[] = [...yearEntries];
+    if (notSpecified && notSpecified.count > 0) {
+      entries.push(notSpecified);
+    }
+    return entries;
+  }, [yearEntries, notSpecified]);
+
   const { activeIndex, handleKeyDown, svgRef: rovingSvgRef } = useRovingFocus(
-    years.length,
-    (index) => onToggleYear(years[index].year),
+    allEntries.length,
+    (index) => {
+      const entry = allEntries[index];
+      if (entry.year !== "not_specified") {
+        onToggleYear(entry.year);
+      }
+    },
   );
 
   const plotW = Math.max(width - margin.left - margin.right, 0);
@@ -50,12 +73,12 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
   const xScale = useMemo(
     () =>
       scaleBand()
-        .domain(years.map((entry) => String(entry.year)))
+        .domain(allEntries.map((entry) => entry.year === "not_specified" ? "not_specified" : String(entry.year)))
         .range([0, plotW])
         .padding(0.3),
-    [years, plotW],
+    [allEntries, plotW],
   );
-  const top = max(years, (entry) => entry.count) ?? 0;
+  const top = max(allEntries, (entry) => entry.count) ?? 0;
   const yScale = useMemo(
     () => scaleLinear().domain([0, Math.max(top, 1)]).nice().range([plotH, 0]),
     [top, plotH],
@@ -63,7 +86,7 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
   const yTicks = useMemo(() => yScale.ticks(4), [yScale]);
 
   // Mobile: label roughly every Nth bar so text never collides; all bars stay.
-  const tickStep = Math.max(1, Math.ceil(years.length / (compact ? 8 : 25)));
+  const tickStep = Math.max(1, Math.ceil(allEntries.length / (compact ? 8 : 25)));
 
   // Sync the roving focus SVG ref (must be before early return for hook order)
   useEffect(() => {
@@ -74,10 +97,12 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
     return <div ref={containerRef} className="h-56 w-full" aria-hidden="true" />;
   }
 
-  const activeEntry = tooltip ? (years.find((entry) => entry.year === tooltip.year) ?? null) : null;
+  const activeEntry = tooltip
+    ? allEntries.find((entry) => entry.year === tooltip.year) ?? null
+    : null;
   const rows: TooltipRow[] = activeEntry
     ? [
-        { label: "End year", value: String(activeEntry.year) },
+        { label: "End year", value: activeEntry.year === "not_specified" ? "Not specified" : String(activeEntry.year) },
         { label: "Records", value: formatCount(activeEntry.count) },
       ]
     : [];
@@ -91,9 +116,10 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
       <svg
         ref={svgRef}
         role="listbox"
+        aria-multiselectable="true"
         data-roving-root
-        aria-label={`End-year distribution: ${years.length} supplied year values, bars show record counts. Use arrow keys to navigate, Enter to filter.`}
-        aria-activedescendant={years[activeIndex] ? `mark-${years[activeIndex].year}` : undefined}
+        aria-label={`End-year distribution: ${yearEntries.length} supplied year values${notSpecified && notSpecified.count > 0 ? ` plus ${formatCount(notSpecified.count)} Not specified` : ""}. Use arrow keys to navigate, Enter to filter.`}
+        aria-activedescendant={allEntries[activeIndex] ? `mark-${allEntries[activeIndex].year === "not_specified" ? "not-specified" : allEntries[activeIndex].year}` : undefined}
         width={width}
         height={height}
         className="block overflow-visible"
@@ -123,27 +149,30 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
             </text>
           </g>
         ))}
-        {years.map((entry, index) => {
+        {allEntries.map((entry, index) => {
+          const isNotSpecified = entry.year === "not_specified";
+          const domainKey = isNotSpecified ? "not_specified" : String(entry.year);
           const barW = xScale.bandwidth();
           const barH = plotH - yScale(entry.count);
-          const x = margin.left + (xScale(String(entry.year)) ?? 0);
+          const x = margin.left + (xScale(domainKey) ?? 0);
           const y = margin.top + yScale(entry.count);
-          const isSelected = selected.has(entry.year);
+          const isSelected = !isNotSpecified && selected.has(entry.year);
           const isActive = index === activeIndex;
-          const markId = `mark-${entry.year}`;
+          const markId = `end-year-mark-${isNotSpecified ? "not-specified" : entry.year}`;
+          const displayLabel = isNotSpecified ? "Not specified" : String(entry.year);
           return (
             <g
-              key={entry.year}
+              key={domainKey}
               data-mark-index={index}
               data-testid="mark"
               id={markId}
               role="option"
-              aria-label={`${entry.year}, ${formatCount(entry.count)} records${isSelected ? ", selected. Press Enter to remove the filter." : ". Press Enter to filter."}`}
+              aria-label={`${displayLabel}, ${formatCount(entry.count)} records${isSelected ? ", selected. Press Enter to remove the filter." : ". Press Enter to filter."}`}
               aria-selected={isSelected}
               className="cursor-pointer outline-none"
               onMouseEnter={() => setTooltip({ year: entry.year, x: x + barW / 2, y })}
               onMouseLeave={() => setTooltip(null)}
-              onClick={() => onToggleYear(entry.year)}
+              onClick={() => !isNotSpecified && onToggleYear(entry.year)}
             >
               <rect
                 x={x - 6}
@@ -151,7 +180,7 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
                 width={barW + 12}
                 height={plotH}
                 fill="transparent"
-                onClick={() => onToggleYear(entry.year)}
+                onClick={() => !isNotSpecified && onToggleYear(entry.year)}
               />
               <rect
                 x={x}
@@ -159,11 +188,11 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
                 width={Math.max(barW, 3)}
                 height={Math.max(barH, entry.count > 0 ? 2 : 0)}
                 rx={2}
-                fill="var(--primary)"
-                fillOpacity={isSelected ? 1 : 0.78}
+                fill={isNotSpecified ? "var(--foreground-muted)" : "var(--primary)"}
+                fillOpacity={isSelected ? 1 : isNotSpecified ? 0.6 : 0.78}
                 stroke={isActive ? "var(--foreground)" : isSelected ? "var(--highlight)" : "none"}
                 strokeWidth={isActive ? 2 : isSelected ? 2 : 0}
-                onClick={() => onToggleYear(entry.year)}
+                onClick={() => !isNotSpecified && onToggleYear(entry.year)}
               />
               {index % tickStep === 0 && (
                 <text
@@ -173,7 +202,7 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
                   aria-hidden="true"
                   className="fill-foreground-muted font-mono text-micro"
                 >
-                  {entry.year}
+                  {displayLabel}
                 </text>
               )}
             </g>
@@ -181,7 +210,7 @@ export function EndYearChart({ values, selected, onToggleYear }: EndYearChartPro
         })}
       </svg>
       {activeEntry && placed && (
-        <ChartTooltip title={String(activeEntry.year)} rows={rows} left={placed.left} top={placed.top} />
+        <ChartTooltip title={activeEntry.year === "not_specified" ? "Not specified" : String(activeEntry.year)} rows={rows} left={placed.left} top={placed.top} />
       )}
     </div>
   );

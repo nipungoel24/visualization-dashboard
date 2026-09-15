@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Deterministic E2E orchestration for Windows.
- * Starts Mongo (via Docker), FastAPI, Next.js production server,
+ * Starts Mongo (via Docker), seeds the database, starts FastAPI, Next.js production server,
  * runs Playwright, and reliably cleans up all child process trees.
  *
  * Usage:
@@ -30,7 +30,7 @@ const MONGODB_DB = "insightscope";
 const ALLOWED_ORIGINS = `http://localhost:${FRONTEND_PORT}`;
 const BACKEND_READY_URL = `http://127.0.0.1:${BACKEND_PORT}/api/v1/ready`;
 const FRONTEND_READY_URL = `http://localhost:${FRONTEND_PORT}/`;
-const PLAYWRIGHT_CONFIG = "playwright.external.config.ts";
+const PLAYWRIGHT_CONFIG = "playwright.config.ts";
 
 const SKIP_BUILD = process.argv.includes("--skip-build");
 const HEADED = process.argv.includes("--headed");
@@ -137,9 +137,49 @@ async function ensureMongo() {
   if (result.status !== 0) {
     throw new Error("Failed to start MongoDB via docker compose");
   }
-  // Give Mongo a moment to accept connections
-  await new Promise((r) => setTimeout(r, 2000));
-  log("MongoDB container started");
+  // Wait for MongoDB to be healthy
+  log("Waiting for MongoDB to be healthy...");
+  for (let i = 0; i < 30; i++) {
+    const ps = spawnSync("docker", ["compose", "ps", "--format", "json"], {
+      cwd: ROOT,
+      stdio: "pipe",
+    });
+    if (ps.status === 0) {
+      try {
+        const lines = ps.stdout.toString().trim().split("\n");
+        for (const line of lines) {
+          const info = JSON.parse(line);
+          if (info.Service === "mongo" && info.Health === "healthy") {
+            log("MongoDB is healthy");
+            return;
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error("MongoDB did not become healthy within 30 seconds");
+}
+
+async function seedDatabase() {
+  log("Seeding database...");
+  const env = {
+    MONGODB_URI,
+    MONGODB_DB,
+    PATH: process.env.PATH,
+  };
+  const pythonPath = resolve(API_DIR, ".venv", "Scripts", "python.exe");
+  const result = spawnSync(pythonPath, ["-m", "app.seed"], {
+    cwd: API_DIR,
+    env,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    throw new Error("Database seeding failed");
+  }
+  log("Database seeded successfully");
 }
 
 async function buildFrontend() {
@@ -240,6 +280,7 @@ async function main() {
 
   try {
     await ensureMongo();
+    await seedDatabase();
 
     if (!SKIP_BUILD) {
       await buildFrontend();

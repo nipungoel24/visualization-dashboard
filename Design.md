@@ -132,8 +132,13 @@ Weights used: 400, 500, 600 (Sans); 400, 500, 600 (Mono). Nothing below 400.
 - Treemap: 2px inner padding, 4px tile radius, muted 11px labels inside tiles where the tile
   is large enough (hide below ~44px width), value in Mono; title outside the plot.
 - Empty/loading/error states per §12. Tooltips per §9.
-- Every chart SVG: `role="img"` + `aria-label` describing the visualization and its axes;
+- Informational chart SVGs: `role="img"` + `aria-label` describing the visualization and its axes;
   essential numbers also present as visible labels or adjacent table/legend.
+- Interactive selectable charts (Signals Landscape, End-Year Outlook, Sector Composition, Topic Intelligence):
+  composite widget pattern with `role="listbox"` on the SVG root and `role="option"` on each mark;
+  `aria-activedescendant` for roving focus; `aria-multiselectable="true"` where multiple selections allowed;
+  keyboard operation via Arrow keys (navigate), Home/End, Enter/Space (activate).
+  Marks are NOT individually focusable (no tabindex); the SVG root is the single tab stop (tabIndex=0).
 
 ## 9. Tooltip Styles
 

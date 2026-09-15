@@ -204,6 +204,7 @@ export function Dashboard() {
             <>
               <VisualizationSections
                 overview={overview.data}
+                meta={meta.data}
                 isPending={overview.isPending}
                 isError={overview.isError}
                 errorMessage={overview.isError ? userFacingMessage(overview.error) : null}

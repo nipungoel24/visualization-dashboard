@@ -59,6 +59,7 @@ export interface MetaSchema {
   fields: string[];
   field_availability: Record<string, boolean>;
   populated: Record<string, number>;
+  document_count: number;
 }
 
 export interface MetaResponse {
@@ -103,6 +104,8 @@ export interface SummarySection {
   likelihood_populated: number;
   avg_relevance: number | null;
   relevance_populated: number;
+  complete_metrics_populated: number;
+  complete_metrics_percentage: number;
   top_sector: string | null;
 }
 

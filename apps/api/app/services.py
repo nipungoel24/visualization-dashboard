@@ -142,6 +142,11 @@ async def get_overview(db: AsyncDatabase, spec: FilterSpec) -> OverviewResponse:
         )
         for entry in facet.get("sectors") or []
     ]
+    complete_metrics_populated = summary_raw.get("complete_metrics_populated", 0)
+    complete_metrics_percentage = (
+        round(complete_metrics_populated / filtered * 100, 2) if filtered else 0.0
+    )
+
     summary = SummarySection(
         filtered_count=filtered,
         avg_intensity=_round(summary_raw.get("avg_intensity")),
@@ -150,6 +155,8 @@ async def get_overview(db: AsyncDatabase, spec: FilterSpec) -> OverviewResponse:
         likelihood_populated=summary_raw.get("likelihood_populated", 0),
         avg_relevance=_round(summary_raw.get("avg_relevance")),
         relevance_populated=summary_raw.get("relevance_populated", 0),
+        complete_metrics_populated=complete_metrics_populated,
+        complete_metrics_percentage=complete_metrics_percentage,
         top_sector=sectors[0].sector if sectors else None,
     )
 

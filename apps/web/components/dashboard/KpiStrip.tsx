@@ -3,7 +3,7 @@ import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SummarySection } from "@/lib/api";
-import { formatAverage, formatCount } from "@/lib/format";
+import { formatAverage, formatCount, formatPercentage } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface KpiStripProps {
@@ -67,6 +67,10 @@ export function KpiStrip({ summary, isLoading, error, onRetry }: KpiStripProps) 
     );
   }
 
+  const completeMetricsValue = summary?.complete_metrics_percentage !== undefined
+    ? formatPercentage(summary.complete_metrics_percentage)
+    : "—";
+
   return (
     <div
       className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-5"
@@ -76,7 +80,7 @@ export function KpiStrip({ summary, isLoading, error, onRetry }: KpiStripProps) 
       <Kpi label="Avg intensity" value={formatAverage(summary?.avg_intensity)} />
       <Kpi label="Avg likelihood" value={formatAverage(summary?.avg_likelihood)} />
       <Kpi label="Avg relevance" value={formatAverage(summary?.avg_relevance)} />
-      <Kpi label="Top sector" value={summary?.top_sector ?? "—"} mono={false} />
+      <Kpi label="Complete metrics coverage" value={completeMetricsValue} mono={false} />
     </div>
   );
 }

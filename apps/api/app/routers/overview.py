@@ -3,13 +3,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from app.db import get_database
-from app.filters import FilterSpec, parse_filters
+from app.filters import FilterSpec, parse_overview_filters
 from app.schemas import OverviewResponse
 from app.services import get_overview
 
 router = APIRouter(prefix="/api/v1", tags=["overview"])
 
-FilterDep = Annotated[FilterSpec, Depends(parse_filters)]
+FilterDep = Annotated[FilterSpec, Depends(parse_overview_filters)]
 
 
 @router.get("/overview", response_model=OverviewResponse)

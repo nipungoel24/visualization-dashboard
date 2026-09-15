@@ -112,7 +112,7 @@ describe("EndYearChart", () => {
   ];
 
   it("orders years numerically and preserves extreme values", () => {
-    render(<EndYearChart values={YEARS} selected={new Set()} onToggleYear={() => {}} />);
+    render(<EndYearChart values={YEARS} notSpecified={null} selected={new Set()} onToggleYear={() => {}} />);
     // Marks are focusable elements with data-mark-index
     const marks = screen.getAllByTestId("mark");
     expect(marks.map((mark) => mark.getAttribute("aria-label"))).toEqual([
@@ -125,7 +125,7 @@ describe("EndYearChart", () => {
   it("clicking an extreme year produces the end_year filter", async () => {
     const user = userEvent.setup();
     const onToggleYear = vi.fn();
-    render(<EndYearChart values={YEARS} selected={new Set()} onToggleYear={onToggleYear} />);
+    render(<EndYearChart values={YEARS} notSpecified={null} selected={new Set()} onToggleYear={onToggleYear} />);
     // Click on the transparent hit target rect for 2126
     await user.click(screen.getByLabelText(/2126,/));
     expect(onToggleYear).toHaveBeenCalledWith(2126);
@@ -207,6 +207,10 @@ describe("CoverageChart", () => {
         values={[
           { field: "intensity", populated_count: 962, missing_count: 38, populated_percentage: 96.2 },
           { field: "country", populated_count: 350, missing_count: 650, populated_percentage: 35.0 },
+        ]}
+        fullValues={[
+          { field: "intensity", populated_count: 962, total_count: 1000, populated_percentage: 96.2 },
+          { field: "country", populated_count: 350, total_count: 1000, populated_percentage: 35.0 },
         ]}
       />,
     );

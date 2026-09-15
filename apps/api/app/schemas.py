@@ -59,6 +59,8 @@ class SummarySection(BaseModel):
     likelihood_populated: int
     avg_relevance: float | None
     relevance_populated: int
+    complete_metrics_populated: int
+    complete_metrics_percentage: float
     top_sector: str | None
 
 

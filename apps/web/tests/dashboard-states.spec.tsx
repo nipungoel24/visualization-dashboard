@@ -15,6 +15,8 @@ const SUMMARY: SummarySection = {
   likelihood_populated: 0,
   avg_relevance: 3.5,
   relevance_populated: 403,
+  complete_metrics_populated: 300,
+  complete_metrics_percentage: 74.44,
   top_sector: null,
 };
 
@@ -23,7 +25,8 @@ describe("KpiStrip", () => {
     render(<KpiStrip summary={SUMMARY} isLoading={false} error={null} onRetry={() => {}} />);
     expect(screen.getByText("403")).toBeInTheDocument();
     expect(screen.getByText("12.35")).toBeInTheDocument();
-    expect(screen.getAllByText("—")).toHaveLength(2);
+    // Only avg_likelihood is null (1 em-dash); complete_metrics_percentage has a value
+    expect(screen.getAllByText("—")).toHaveLength(1);
   });
 
   it("renders skeletons while loading", () => {

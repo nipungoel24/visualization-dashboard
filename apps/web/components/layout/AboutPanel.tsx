@@ -111,7 +111,7 @@ export function AboutPanel({ open, onOpenChange, meta }: AboutPanelProps) {
                 TanStack Query
               </span>
               <span className="inline-flex items-center rounded-sm border border-border bg-surface px-2 py-1 text-xs font-medium">
-                D3 <span className="ml-1 text-foreground-muted">(Phase 4)</span>
+                D3
               </span>
             </div>
             <p className="mt-2 text-xs leading-4 text-foreground-muted">

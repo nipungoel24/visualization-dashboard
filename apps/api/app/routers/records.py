@@ -3,13 +3,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from app.db import get_database
-from app.filters import FilterSpec, PaginationSpec, parse_filters, parse_pagination
+from app.filters import FilterSpec, PaginationSpec, parse_pagination, parse_records_filters
 from app.schemas import RecordItem, RecordsPage
 from app.services import get_record, get_records
 
 router = APIRouter(prefix="/api/v1", tags=["records"])
 
-FilterDep = Annotated[FilterSpec, Depends(parse_filters)]
+FilterDep = Annotated[FilterSpec, Depends(parse_records_filters)]
 PaginationDep = Annotated[PaginationSpec, Depends(parse_pagination)]
 
 

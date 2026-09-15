@@ -78,6 +78,51 @@ UNAVAILABLE_DIMENSIONS: dict[str, str] = {
     "swot": "swot",
 }
 
+# Allowed query parameters per endpoint (excluding unavailable dimensions)
+ALLOWED_OVERVIEW_FACETS_PARAMS: frozenset[str] = frozenset(
+    {
+        "topic",
+        "sector",
+        "region",
+        "pestle",
+        "source",
+        "country",
+        "end_year",
+        "start_year",
+        "intensity_min",
+        "intensity_max",
+        "likelihood_min",
+        "likelihood_max",
+        "relevance_min",
+        "relevance_max",
+        "q",
+    }
+)
+
+ALLOWED_RECORDS_PARAMS: frozenset[str] = frozenset(
+    {
+        *ALLOWED_OVERVIEW_FACETS_PARAMS,
+        "page",
+        "page_size",
+        "sort",
+        "order",
+    }
+)
+
+
+def validate_unknown_params(request: Request, allowed: frozenset[str]) -> None:
+    """Reject unknown query parameters with 422."""
+    unknown = []
+    for param in request.query_params.keys():
+        if param not in allowed and param not in UNAVAILABLE_DIMENSIONS:
+            unknown.append(param)
+    if unknown:
+        raise ApiError(
+            422,
+            "validation_error",
+            f"Unknown query parameter(s): {', '.join(sorted(unknown))}",
+        )
+
 
 @dataclass(frozen=True)
 class FilterSpec:
@@ -145,23 +190,23 @@ def _parse_range(raw: str | None, param: str) -> int | None:
         ) from None
 
 
-def parse_filters(
+def _parse_filters_core(
     request: Request,
-    topic: Annotated[list[str] | None, Query()] = None,
-    sector: Annotated[list[str] | None, Query()] = None,
-    region: Annotated[list[str] | None, Query()] = None,
-    pestle: Annotated[list[str] | None, Query()] = None,
-    source: Annotated[list[str] | None, Query()] = None,
-    country: Annotated[list[str] | None, Query()] = None,
-    end_year: Annotated[list[str] | None, Query()] = None,
-    start_year: Annotated[list[str] | None, Query()] = None,
-    intensity_min: Annotated[str | None, Query()] = None,
-    intensity_max: Annotated[str | None, Query()] = None,
-    likelihood_min: Annotated[str | None, Query()] = None,
-    likelihood_max: Annotated[str | None, Query()] = None,
-    relevance_min: Annotated[str | None, Query()] = None,
-    relevance_max: Annotated[str | None, Query()] = None,
-    q: Annotated[str | None, Query(max_length=MAX_SEARCH_LENGTH)] = None,
+    topic: list[str] | None,
+    sector: list[str] | None,
+    region: list[str] | None,
+    pestle: list[str] | None,
+    source: list[str] | None,
+    country: list[str] | None,
+    end_year: list[str] | None,
+    start_year: list[str] | None,
+    intensity_min: str | None,
+    intensity_max: str | None,
+    likelihood_min: str | None,
+    likelihood_max: str | None,
+    relevance_min: str | None,
+    relevance_max: str | None,
+    q: str | None,
 ) -> FilterSpec:
     query_params = request.query_params
     for param, _dimension in UNAVAILABLE_DIMENSIONS.items():
@@ -206,6 +251,123 @@ def parse_filters(
         relevance_min=parsed_ranges["relevance"][0],
         relevance_max=parsed_ranges["relevance"][1],
         q=q.strip() if q and q.strip() else None,
+    )
+
+
+def parse_overview_filters(
+    request: Request,
+    topic: Annotated[list[str] | None, Query()] = None,
+    sector: Annotated[list[str] | None, Query()] = None,
+    region: Annotated[list[str] | None, Query()] = None,
+    pestle: Annotated[list[str] | None, Query()] = None,
+    source: Annotated[list[str] | None, Query()] = None,
+    country: Annotated[list[str] | None, Query()] = None,
+    end_year: Annotated[list[str] | None, Query()] = None,
+    start_year: Annotated[list[str] | None, Query()] = None,
+    intensity_min: Annotated[str | None, Query()] = None,
+    intensity_max: Annotated[str | None, Query()] = None,
+    likelihood_min: Annotated[str | None, Query()] = None,
+    likelihood_max: Annotated[str | None, Query()] = None,
+    relevance_min: Annotated[str | None, Query()] = None,
+    relevance_max: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=MAX_SEARCH_LENGTH)] = None,
+) -> FilterSpec:
+    validate_unknown_params(request, ALLOWED_OVERVIEW_FACETS_PARAMS)
+    return _parse_filters_core(
+        request,
+        topic,
+        sector,
+        region,
+        pestle,
+        source,
+        country,
+        end_year,
+        start_year,
+        intensity_min,
+        intensity_max,
+        likelihood_min,
+        likelihood_max,
+        relevance_min,
+        relevance_max,
+        q,
+    )
+
+
+def parse_facets_filters(
+    request: Request,
+    topic: Annotated[list[str] | None, Query()] = None,
+    sector: Annotated[list[str] | None, Query()] = None,
+    region: Annotated[list[str] | None, Query()] = None,
+    pestle: Annotated[list[str] | None, Query()] = None,
+    source: Annotated[list[str] | None, Query()] = None,
+    country: Annotated[list[str] | None, Query()] = None,
+    end_year: Annotated[list[str] | None, Query()] = None,
+    start_year: Annotated[list[str] | None, Query()] = None,
+    intensity_min: Annotated[str | None, Query()] = None,
+    intensity_max: Annotated[str | None, Query()] = None,
+    likelihood_min: Annotated[str | None, Query()] = None,
+    likelihood_max: Annotated[str | None, Query()] = None,
+    relevance_min: Annotated[str | None, Query()] = None,
+    relevance_max: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=MAX_SEARCH_LENGTH)] = None,
+) -> FilterSpec:
+    validate_unknown_params(request, ALLOWED_OVERVIEW_FACETS_PARAMS)
+    return _parse_filters_core(
+        request,
+        topic,
+        sector,
+        region,
+        pestle,
+        source,
+        country,
+        end_year,
+        start_year,
+        intensity_min,
+        intensity_max,
+        likelihood_min,
+        likelihood_max,
+        relevance_min,
+        relevance_max,
+        q,
+    )
+
+
+def parse_records_filters(
+    request: Request,
+    topic: Annotated[list[str] | None, Query()] = None,
+    sector: Annotated[list[str] | None, Query()] = None,
+    region: Annotated[list[str] | None, Query()] = None,
+    pestle: Annotated[list[str] | None, Query()] = None,
+    source: Annotated[list[str] | None, Query()] = None,
+    country: Annotated[list[str] | None, Query()] = None,
+    end_year: Annotated[list[str] | None, Query()] = None,
+    start_year: Annotated[list[str] | None, Query()] = None,
+    intensity_min: Annotated[str | None, Query()] = None,
+    intensity_max: Annotated[str | None, Query()] = None,
+    likelihood_min: Annotated[str | None, Query()] = None,
+    likelihood_max: Annotated[str | None, Query()] = None,
+    relevance_min: Annotated[str | None, Query()] = None,
+    relevance_max: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=MAX_SEARCH_LENGTH)] = None,
+) -> FilterSpec:
+    validate_unknown_params(request, ALLOWED_RECORDS_PARAMS)
+    return _parse_filters_core(
+        request,
+        topic,
+        sector,
+        region,
+        pestle,
+        source,
+        country,
+        end_year,
+        start_year,
+        intensity_min,
+        intensity_max,
+        likelihood_min,
+        likelihood_max,
+        relevance_min,
+        relevance_max,
+        q,
     )
 
 

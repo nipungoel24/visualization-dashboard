@@ -79,6 +79,27 @@ def _metric_summary(metric: str) -> dict[str, object]:
     }
 
 
+def _complete_metrics_summary() -> dict[str, object]:
+    """Count records where intensity, likelihood, and relevance are all non-null."""
+    return {
+        "complete_metrics_populated": {
+            "$sum": {
+                "$cond": [
+                    {
+                        "$and": [
+                            {"$ne": ["$intensity", None]},
+                            {"$ne": ["$likelihood", None]},
+                            {"$ne": ["$relevance", None]},
+                        ]
+                    },
+                    1,
+                    0,
+                ]
+            }
+        }
+    }
+
+
 def build_overview_pipeline(match: dict[str, object]) -> list[dict[str, object]]:
     """One [$match, $facet] pipeline that computes every dashboard section from
     a single consistently filtered pass over the insights collection."""
@@ -88,6 +109,7 @@ def build_overview_pipeline(match: dict[str, object]) -> list[dict[str, object]]
     summary_group.update(_metric_summary("intensity"))
     summary_group.update(_metric_summary("likelihood"))
     summary_group.update(_metric_summary("relevance"))
+    summary_group.update(_complete_metrics_summary())
     facet["summary"] = [{"$group": summary_group}]
 
     facet["years"] = [{"$group": {"_id": "$end_year", "count": {"$sum": 1}}}]

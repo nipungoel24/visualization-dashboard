@@ -1,12 +1,13 @@
+import { useMemo } from "react";
 import { topNWithSelected } from "@/lib/d3/palette";
-import type { OverviewResponse } from "@/lib/api";
+import type { OverviewResponse, MetaResponse } from "@/lib/api";
 import {
   type CategoricalField,
   type FilterState,
   type YearField,
 } from "@/lib/filters";
-import { formatAverage, formatCount } from "@/lib/format";
-import { CoverageChart } from "../charts/CoverageChart";
+import { formatAverage, formatCount, round } from "@/lib/format";
+import { CoverageChart, type FullCoverageDatum } from "../charts/CoverageChart";
 import { EndYearChart } from "../charts/EndYearChart";
 import { MetricDistribution } from "../charts/MetricDistribution";
 import { RankingChart, type RankRow } from "../charts/RankingChart";
@@ -19,6 +20,7 @@ const COUNTRY_LIMIT = 15;
 
 interface VisualizationSectionsProps {
   overview: OverviewResponse | undefined;
+  meta: MetaResponse | undefined;
   isPending: boolean;
   isError: boolean;
   errorMessage: string | null;
@@ -86,6 +88,7 @@ function rankRows<T extends Facetish>(
  */
 export function VisualizationSections({
   overview,
+  meta,
   isPending,
   isError,
   errorMessage,
@@ -143,6 +146,20 @@ export function VisualizationSections({
   const topicSet = new Set(filters.topic);
   const empty = overview === undefined;
 
+  // Compute full dataset coverage from meta
+  const fullCoverage: FullCoverageDatum[] = useMemo(() => {
+    const populated = meta?.schema?.populated;
+    const documentCount = meta?.schema?.document_count;
+    if (!populated || !documentCount) return [];
+    const total = documentCount;
+    return Object.entries(populated as Record<string, number>).map(([field, populated]) => ({
+      field,
+      populated_count: populated,
+      total_count: total,
+      populated_percentage: total > 0 ? round(populated / total * 100, 2) : 0,
+    }));
+  }, [meta?.schema?.populated, meta?.schema?.document_count]);
+
   const topics = overview?.topics.values ?? [];
   const countries = overview?.countries.values ?? [];
   const countrySet = new Set(filters.country);
@@ -192,17 +209,18 @@ export function VisualizationSections({
     ),
     frame(
       "End-Year Outlook",
-      "Categorical bars · one per supplied year",
+      "Categorical bars · one per supplied year · Not specified shown separately",
       "lg:col-span-4",
       () => (
         <EndYearChart
           values={overview?.years.values ?? []}
+          notSpecified={overview?.years.missing_count ? { year: "not_specified" as const, count: overview.years.missing_count } : null}
           selected={new Set(filters.end_year)}
           onToggleYear={(year) => onToggle("end_year", year)}
         />
       ),
       "No end-year values are available for these filters.",
-      empty || (overview?.years.values.length ?? 0) === 0,
+      empty || ((overview?.years.values.length ?? 0) === 0 && !overview?.years.missing_count),
     ),
     frame(
       "Sector Composition",
@@ -354,9 +372,9 @@ export function VisualizationSections({
     ),
     frame(
       "Data Coverage",
-      "Populated share of the current selection",
+      "Populated share: current selection (solid) vs full dataset (outline)",
       "lg:col-span-4",
-      () => <CoverageChart values={overview?.data_coverage.values ?? []} />,
+      () => <CoverageChart values={overview?.data_coverage.values ?? []} fullValues={fullCoverage} />,
       "No coverage values are available for these filters.",
       empty || (overview?.data_coverage.values.length ?? 0) === 0,
     ),

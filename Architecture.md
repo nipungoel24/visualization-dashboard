@@ -167,7 +167,10 @@ ranges use `_min`/`_max` suffixes (`intensity_min=5&intensity_max=20`).
   `likelihood`, `relevance`, `topic`, `sector`, `country`. Default sort is
   `source_row_index` ascending.
 - `q` is regex-escaped before matching.
-- Unknown query params are rejected with `422` (strict surface).
+- Unknown query params are rejected with `422` (strict surface). Each endpoint validates
+  against its own allowed parameter set: `/overview` and `/facets` accept analytical
+  filter params; `/records` additionally accepts `page`, `page_size`, `sort`, `order`,
+  `q`. Unknown params on any endpoint produce `422 validation_error`.
 - `city` and `swot` are rejected with `422` (`unavailable_dimension`) whenever a
   non-empty value is submitted, since they are not in the source dataset.
 - Record ids must match `^[0-9a-f]{64}$` (SHA-256 hex); malformed -> `422`
@@ -205,8 +208,12 @@ assert the generated `$match` documents for representative and combined cases.
 One pipeline: `[{"$match": <central filter>}, {"$facet": {...}}]`. Sections:
 
 - `summary`: `{filtered_count, avg_intensity, intensity_populated, avg_likelihood,
-  likelihood_populated, avg_relevance, relevance_populated, top_sector}` computed
-  over non-null metric values within the filtered set.
+  likelihood_populated, avg_relevance, relevance_populated, complete_metrics_populated,
+  complete_metrics_percentage, top_sector}` computed
+  over non-null metric values within the filtered set. `complete_metrics_populated` is
+  the count of records where intensity, likelihood, and relevance are all non-null.
+  `complete_metrics_percentage` is `complete_metrics_populated / filtered_count * 100`
+  when filtered_count > 0, else 0.
 - `intensity` / `likelihood` / `relevance`: bin counts over the fixed bin ranges
   (defined in `app/aggregations.py`) + `not_specified` counts.
 - `years`: counts per non-null `end_year` category, sorted ascending, + `missing_count`.

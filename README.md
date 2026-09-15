@@ -15,9 +15,6 @@ API backed by MongoDB.
 **Project control files** (read these first): `PRD.md`, `Architecture.md`, `Rules.md`,
 `Phases.md`, `Design.md`. Current execution state: `Memory.md`.
 
-> Status: Phase 2 (filtering/analytics API) complete. Frontend arrives in Phase 3.
-> This README documents the reproducible developer setup.
-
 ## Prerequisites
 
 - Docker (for local MongoDB)
@@ -82,12 +79,11 @@ cd apps/web
 pnpm dev                         # http://localhost:3000
 ```
 
-Phase 1 serves a minimal development status screen that checks `/health` and `/ready` against
-the backend. Set `NEXT_PUBLIC_API_BASE_URL` in `.env` if the API runs elsewhere.
+Set `NEXT_PUBLIC_API_BASE_URL` in `.env` if the API runs elsewhere.
 
 ## 7. Verification commands
 
-Backend:
+### Backend
 
 ```sh
 cd apps/api
@@ -98,16 +94,37 @@ uv run pytest                     # unit tests (always run)
 MONGODB_TEST_URI=mongodb://localhost:27017 uv run pytest   # + integration tests (Mongo up)
 ```
 
-Frontend:
+### Frontend
 
 ```sh
 cd apps/web
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm build
 ```
 
-## Troubleshooting
+### End-to-end (full stack)
+
+```sh
+cd apps/web
+pnpm test:e2e          # runs scripts/run-e2e.mjs: Mongo -> seed -> FastAPI -> Next.js build -> Playwright
+# or for headed mode:
+pnpm test:e2e:headed
+```
+
+The E2E orchestration:
+1. Verifies ports 3001 and 8000 are free
+2. Starts MongoDB via Docker Compose and waits for healthy
+3. Seeds the database (validates SHA-256, imports 1,000 records)
+4. Builds the production frontend
+5. Starts FastAPI on port 8000
+6. Waits for `/api/v1/ready`
+7. Starts Next.js production server on port 3001
+8. Runs Playwright tests against real stack
+9. Cleans up all child processes on exit
+
+## 8. Troubleshooting
 
 - **Port conflicts**: if `3000` is busy, Next.js picks the next free port; add that origin to
   `ALLOWED_ORIGINS` in `.env` so CORS permits browser requests.
@@ -126,3 +143,35 @@ data/raw/       Immutable source dataset (pinned SHA-256)
 reference/      Original assignment document
 docker-compose.yml  Local MongoDB (mongo:8.0, named volume, healthcheck)
 ```
+
+## Dataset integrity
+
+- **Source**: `data/raw/jsondata.json` (immutable, git-tracked)
+- **SHA-256**: `f45b67f7d4a252c5daa3ec0dfd9c7ceb4e415106c404646f66bff93d9aeb1744`
+- **Records**: 1,000
+- **Fields**: 17 (end_year, intensity, sector, topic, insight, url, region, start_year, impact, added, published, country, relevance, pestle, source, title, likelihood)
+- **City/SWOT**: NOT present in source dataset; filters exist but are disabled with explanation "Not present in supplied dataset"
+- **MongoDB record count after seed**: 1,000
+
+## Accessibility approach
+
+- WCAG 2.2 AA targeting: semantic landmarks, keyboard-operable controls, visible focus, contrast, reduced-motion support
+- Interactive charts use composite widget pattern (`role="listbox"` + `role="option"`) with roving focus via `aria-activedescendant`
+- `@axe-core/playwright` scans in E2E suite; zero critical/serious violations required
+- All Morphicons use `reducedMotion="user"`
+
+## Testing overview
+
+- **Backend**: 113 tests (61 unit, 52 integration with MongoDB); 0 failures
+- **Frontend**: 105 Vitest unit/component tests; 0 failures
+- **E2E**: Playwright tests against real stack; zero console errors, zero axe critical/serious violations
+
+## Security notes
+
+- No `.env` or credentials committed; `.env.example` only contains safe defaults
+- CORS restricted to `ALLOWED_ORIGINS`
+- External links only `http:`/`https:` with `rel="noopener noreferrer"`
+- Unknown query parameters rejected with 422
+- No raw Mongo operators accepted from clients
+- Error responses never leak stack traces or internal details
+- Frontend bundle does not contain `jsondata.json` or secrets

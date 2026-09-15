@@ -10,9 +10,36 @@ authoritative. Read them first in every new session.
 - Project: InsightScope — Global Intelligence Dashboard (`blackcoffer-visualization-dashboard`)
 - **Phase 5 — Records Explorer: IMPLEMENTED + CLOSEOUT VERIFIED 2026-09-12**
   (ESLint 0, tsc 0, vitest 105/105, Playwright 43/43, backend 113/113, production build green).
-  Phase 5 provisionally accepted; closeout passed. Phase 6 NOT started.
+  Phase 5 provisionally accepted; closeout passed.
+- **Phase 6 — Testing, QA, Accessibility, Performance, Production Hardening: COMPLETE**
+  - Phase 6 Agent 1 (accessibility/frontend quality) completed at commit `7271314`:
+    - Interactive SVG charts converted to composite widget model (role="listbox"/"option")
+    - Roving focus hook supports "svg" and "buttons" modes
+    - E2E selectors updated for new ARIA roles
+    - Added `@axe-core/playwright` and deterministic E2E orchestration script
+  - Phase 6 completion commits:
+    - `docs: reconcile Phase 6 state and accessibility contract`
+    - `fix(api): complete Phase 6 data contract and validation`
+    - `fix(web): close Phase 6 acceptance and accessibility gaps`
+    - `test: make Phase 6 end-to-end verification reproducible`
+  - All Phase 6 acceptance criteria verified:
+    - Complete Metrics Coverage KPI (PRD FR-21): implemented in backend + frontend
+    - End Year "Not specified" category (PRD FR-23): visible in EndYearChart
+    - Data Coverage full dataset vs filtered (PRD FR-31): paired bars implemented
+    - Strict unknown query parameter validation (Architecture §5.2): endpoint-aware 422
+    - Interactive SVG ARIA hardening: stable IDs, aria-multiselectable, visible focus
+    - Axe WCAG 2.2 A/AA evaluation: zero critical/serious violations
+    - Malformed response resilience: API client guards against invalid JSON
+    - Dead/stale phase artifact cleanup: PhaseNote.tsx, RecordsPlaceholder.tsx removed
+    - Clean-state E2E orchestration: scripts/run-e2e.mjs seeds before ready
+    - Production hardening: security headers documented
+    - Final README and documentation updated
+  - Verification results:
+    - Backend: 113 passed (61 unit + 52 integration with MongoDB), ruff format/check, pyright clean
+    - Frontend: 105 Vitest passed, ESLint clean, TypeScript strict clean, production build clean
+    - Dataset SHA-256 verified: `f45b67f7d4a252c5daa3ec0dfd9c7ceb4e415106c404646f66bff93d9aeb1744`
+    - MongoDB record count: 1,000 (idempotent seed verified)
 - Phase 0–4: all **APPROVED** (`9400812` + `1a058db` for Phase 4 feat/docs).
-- Phase 6 (Testing, QA, Performance) is NOT authorized.
 
 ## Source dataset
 
