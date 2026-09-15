@@ -41,7 +41,7 @@ export function RecordPagination({
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
+            size="icon"
             disabled={!canPrev}
             aria-label="Previous page"
             onClick={() => onChangePage(page - 1)}
@@ -51,7 +51,7 @@ export function RecordPagination({
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
+            size="icon"
             disabled={!canNext}
             aria-label="Next page"
             onClick={() => onChangePage(page + 1)}

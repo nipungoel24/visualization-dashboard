@@ -81,7 +81,7 @@ function RecordDesktopRow({
 
   return (
     <tr
-      className="group cursor-pointer border-b border-border/60 transition-colors duration-150 hover:bg-surface-muted/50 focus:outline-none focus-visible:bg-surface-muted/70"
+      className="group cursor-pointer border-b border-border/60 transition-colors duration-150 hover:bg-surface-muted/50 focus-visible:bg-surface-muted/70"
       onClick={() => onSelect(record.id)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -151,7 +151,7 @@ function SortButton({
           : `Sort by ${column.label}`
       }
       onClick={() => onSort(column.key)}
-      className="inline-flex h-7 cursor-pointer items-center gap-1 text-left text-micro font-medium tracking-wider text-foreground-muted hover:text-foreground focus:outline-none focus-visible:text-foreground"
+      className="inline-flex h-7 cursor-pointer items-center gap-1 text-left text-micro font-medium tracking-wider text-foreground-muted hover:text-foreground focus-visible:text-foreground"
     >
       <span className="uppercase">{column.label}</span>
       <ArrowGlyph active={active} order={order} />
@@ -214,7 +214,7 @@ function RecordMobileItem({
     <button
       type="button"
       onClick={handleClick}
-      className="block w-full cursor-pointer rounded-md border border-border bg-surface p-3 text-left transition-colors duration-150 hover:bg-surface-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="block w-full cursor-pointer rounded-md border border-border bg-surface p-3 text-left transition-colors duration-150 hover:bg-surface-muted/50 focus-visible:ring-2 focus-visible:ring-primary"
       aria-label={`Open record ${cell(record.title)}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -371,7 +371,7 @@ export function RecordsExplorer({
                         />
                       </th>
                     ))}
-                    <th className="w-6"></th>
+                    <th className="w-6" aria-hidden="true"></th>
                   </tr>
                 </thead>
                 <tbody>
