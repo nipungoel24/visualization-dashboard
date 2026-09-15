@@ -92,7 +92,7 @@ export function MultiSelectFilter({
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
               {selected.length > 0 && (
-                <Badge variant="primary" aria-label={`${selected.length} selected`}>
+                <Badge variant="primary" aria-hidden="true">
                   {selected.length}
                 </Badge>
               )}
