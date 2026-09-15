@@ -119,7 +119,7 @@ export function EndYearChart({ values, notSpecified, selected, onToggleYear }: E
         aria-multiselectable="true"
         data-roving-root
         aria-label={`End-year distribution: ${yearEntries.length} supplied year values${notSpecified && notSpecified.count > 0 ? ` plus ${formatCount(notSpecified.count)} Not specified` : ""}. Use arrow keys to navigate, Enter to filter.`}
-        aria-activedescendant={allEntries[activeIndex] ? `mark-${allEntries[activeIndex].year === "not_specified" ? "not-specified" : allEntries[activeIndex].year}` : undefined}
+        aria-activedescendant={allEntries[activeIndex] ? `end-year-mark-${allEntries[activeIndex].year === "not_specified" ? "not-specified" : allEntries[activeIndex].year}` : undefined}
         width={width}
         height={height}
         className="block overflow-visible"

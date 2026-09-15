@@ -70,7 +70,7 @@ export function SearchField({ value, onChange }: SearchFieldProps) {
             setDraft("");
             onChange("");
           }}
-          className="absolute top-1/2 right-1 inline-flex h-8 min-w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm p-1 text-foreground-muted transition-[background-color,color] duration-150 ease-out hover:bg-surface-muted hover:text-foreground sm:h-6 sm:min-w-6 sm:right-1.5 sm:p-0"
+          className="absolute top-1/2 right-1 inline-flex h-10 min-w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm p-1 text-foreground-muted transition-[background-color,color] duration-150 ease-out hover:bg-surface-muted hover:text-foreground sm:h-8 sm:min-w-8 sm:right-1.5 sm:p-0"
         >
           <X size={14} strokeWidth={1.75} aria-hidden="true" />
         </button>

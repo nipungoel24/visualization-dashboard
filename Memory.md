@@ -17,28 +17,30 @@ authoritative. Read them first in every new session.
     - Roving focus hook supports "svg" and "buttons" modes
     - E2E selectors updated for new ARIA roles
     - Added `@axe-core/playwright` and deterministic E2E orchestration script
-  - Phase 6 completion commits:
-    - `docs: reconcile Phase 6 state and accessibility contract`
-    - `fix(api): complete Phase 6 data contract and validation`
-    - `fix(web): close Phase 6 acceptance and accessibility gaps`
-    - `test: make Phase 6 end-to-end verification reproducible`
-  - All Phase 6 acceptance criteria verified:
-    - Complete Metrics Coverage KPI (PRD FR-21): implemented in backend + frontend
-    - End Year "Not specified" category (PRD FR-23): visible in EndYearChart
-    - Data Coverage full dataset vs filtered (PRD FR-31): paired bars implemented
-    - Strict unknown query parameter validation (Architecture §5.2): endpoint-aware 422
-    - Interactive SVG ARIA hardening: stable IDs, aria-multiselectable, visible focus
-    - Axe WCAG 2.2 A/AA evaluation: zero critical/serious violations
-    - Malformed response resilience: API client guards against invalid JSON
-    - Dead/stale phase artifact cleanup: PhaseNote.tsx, RecordsPlaceholder.tsx removed
-    - Clean-state E2E orchestration: scripts/run-e2e.mjs seeds before ready
-    - Production hardening: security headers documented
-    - Final README and documentation updated
-  - Verification results:
-    - Backend: 113 passed (61 unit + 52 integration with MongoDB), ruff format/check, pyright clean
-    - Frontend: 105 Vitest passed, ESLint clean, TypeScript strict clean, production build clean
-    - Dataset SHA-256 verified: `f45b67f7d4a252c5daa3ec0dfd9c7ceb4e415106c404646f66bff93d9aeb1744`
-    - MongoDB record count: 1,000 (idempotent seed verified)
+  - Phase 6 Agent 2 (security hardening) cherry-picked at `180d5cc`:
+    - `poweredByHeader: false`, X-Content-Type-Options, Referrer-Policy, X-Frame-Options, Permissions-Policy
+    - `e2e/security.spec.ts` (6 tests)
+  - Phase 6 Agent 3 (accessibility) cherry-picked at `b143f78`:
+    - Filter/records/pagination accessibility fixes
+    - `agent3-accessibility.spec.ts` (E2E), `agent3-filter-accessibility.spec.tsx` (29 tests), `agent3-records-accessibility.spec.tsx` (17 tests)
+  - Final integration verification (commit `fix: complete Phase 6 integration verification`):
+    - Fixed Data Coverage contract: `meta?.document_count` (was incorrectly `meta?.schema?.document_count`)
+    - Added malformed response validation: runtime type guards for all API responses
+    - Fixed touch targets: mobile ≥40px, desktop ≥32px on chip/search/pagination controls
+    - Fixed E2E orchestration: removed duplicate server startup from run-e2e.mjs; playwright.config.ts owns lifecycle
+    - Fixed EndYearChart `aria-activedescendant` ID mismatch (`mark-` → `end-year-mark-`)
+    - E2E database isolation: `insightscope_e2e` database
+    - Cleaned stale phase comments
+  - Verification results (FINAL):
+    - Backend: 113 passed (61 unit + 52 integration), ruff format/check clean, pyright 0 errors
+    - Frontend: 151 Vitest passed, ESLint clean, TypeScript strict clean, production build clean
+    - E2E: 94 Playwright tests, 3 consecutive runs all 94/94 passed, 0 flaky
+    - Axe: 0 critical, 0 serious, 0 moderate, 0 minor violations across all viewports
+    - Security: all headers verified via Playwright
+    - Dataset SHA-256: `f45b67f7d4a252c5daa3ec0dfd9c7ceb4e415106c404646f66bff93d9aeb1744` (verified)
+    - MongoDB: 1,000 records (insightscope_e2e, idempotent seed verified)
+    - dangerouslySetInnerHTML: 1 deliberate use (thesvg brand marks in AboutPanel, trusted package, no dataset values)
+    - Lighthouse: NOT RUN
 - Phase 0–4: all **APPROVED** (`9400812` + `1a058db` for Phase 4 feat/docs).
 
 ## Source dataset
@@ -146,28 +148,22 @@ authoritative. Read them first in every new session.
   - Tooling placement: `app/providers.tsx` added (QueryClient + Tooltip providers; not in
     the Architecture tree — single client boundary beside `page.tsx`).
 
-## Testing status (Phase 5 closeout verification run, 2026-09-12, Mongo UP)
+## Testing status (Phase 6 final integration verification, 2026-09-15, Mongo UP)
 
-- Frontend unit/component (vitest): **105 passed, 0 failed** —
-  `filters.spec` (19), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
+- Backend regression: **113 passed, 0 failed, 0 skipped** (Mongo UP).
+- Frontend unit/component (vitest): **151 passed, 0 failed** —
+  `filters.spec` (20), `format.spec` (10), `palette.spec` (7), `landscape.spec` (17),
   `treemap.spec` (3), `tooltip.spec` (3), `filter-ui.spec` (9), `dashboard-states.spec` (5),
-  `charts.spec` (12), `explorer.spec` (7), `record-detail.spec` (11) —
-  last grew from 4 to 11 tests: the URL-scheme safety matrix (`mailto:`/`javascript:`/`data:`/`ftp:`/`file:`/
-  malformed/null rejected; `http:`/`https:` allowed with `target="_blank" rel="noopener noreferrer"`).
-- Playwright real-API E2E (`e2e/smoke.spec.ts` + `e2e/records.spec.ts`): **43 passed, 0 failed** —
-  smoke: 19; records: 24 — table render (1,000 + page 1/40 + no doc overflow), sort toggle (URL + reorder),
-  sort resets page, pagination (page=2 + URL + step back), filter resets page (oil→403 / page 1/17),
-  real workflow cross-checks (unfiltered 1000/40 pages, oil 403/17, oil+USA 51/3, true detail fields from API),
-  row click→dialog + `record=<sha256>`, deep-link `/?record=<id>`, browser back/forward with filters intact,
-  keyboard Enter/Escape/focus-restore, Close-button focus restore, request isolation (overview/facets not
-  refetched on page/sort/record change), records API failure (explicit error + Retry button, KPI intact),
-  detail API failure (drawer alert, dashboard intact, closable), zero-result panel (count=0 → ZeroResults,
-  not broken frames), URL-safety E2E of rendered links, mobile card list (390 × 844, no table, no overflow),
-  required-viewport overflow audit (1440/1024/390), query isolation (open/close record does not refetch
-  records/overview/facets), detail cache (ID-specific key, no stale bleed). Every guarded flow asserts
-  **zero console errors AND zero console warnings AND zero pageerrors** (hydration/Radix warnings would fail).
-- Backend regression (untouched in Phase 5): **113 passed, 0 failed, 0 skipped** (Mongo UP).
-- Final: `npm run lint` 0, `npm run typecheck` 0, `npm run build` (next) clean, vitest 105, Playwright 43.
+  `charts.spec` (12), `explorer.spec` (7), `record-detail.spec` (12),
+  `agent3-filter-accessibility.spec` (29), `agent3-records-accessibility.spec` (17).
+- Playwright E2E (94 tests, 3 consecutive runs all green):
+  - `smoke.spec.ts`: 19 tests
+  - `records.spec.ts`: 24 tests
+  - `accessibility.spec.ts`: 19 tests
+  - `security.spec.ts`: 6 tests
+  - `agent3-accessibility.spec.ts`: 26 tests
+- Axe: 0 critical/serious/moderate/minor across all viewports (1440, 1024, 390).
+- Final: ruff format/check 0, pyright 0, ESLint 0, tsc 0, vitest 151, Playwright 94.
 
 ## Phase 5 closeout decisions (2026-09-12)
 
@@ -298,15 +294,15 @@ authoritative. Read them first in every new session.
 
 ## Known failures / issues
 
-- None. Records-list API failures show explicit error + Retry (distinct from zero-results).
+- None. All 94 E2E tests pass across 3 consecutive runs. All 151 Vitest tests pass. All 113 backend tests pass.
 
 ## Next allowed task
 
-- STOP. Await explicit user approval of the Phase 5 closeout report. Do NOT begin Phase 6.
+- STOP. Phase 6 is COMPLETE on the fully integrated codebase. Phase 7 may begin only with explicit user approval.
 
 ## Last verified commit
 
-- `a471d0b` — Phase 5 records explorer (feat + docs)
-- `d32ded6` — Phase 5 docs
-- `783c5e6` — fix(web): finalize records explorer safety and QA
-- **New closeout commit**: `fix(web): harden records error recovery and query isolation` (to be created)
+- Phase 6 final integration: `fix: complete Phase 6 integration verification`
+- Agent 2 cherry-pick: `180d5cc` (security hardening)
+- Agent 3 cherry-pick: `b143f78` (accessibility)
+- Integration branch: `phase6-final-integration`

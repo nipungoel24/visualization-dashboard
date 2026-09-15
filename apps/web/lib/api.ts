@@ -1,5 +1,5 @@
 /**
- * Centralized typed API client for the Phase 2 backend.
+ * Centralized typed API client for the backend.
  * All dashboard data flows through these fetchers — no scattered `fetch()` calls,
  * no client-side copy of the dataset (Rules R2).
  */
@@ -59,7 +59,6 @@ export interface MetaSchema {
   fields: string[];
   field_availability: Record<string, boolean>;
   populated: Record<string, number>;
-  document_count: number;
 }
 
 export interface MetaResponse {
@@ -224,7 +223,79 @@ export interface RecordsPage {
 /** Filter query params in the backend's repeated-parameter model. */
 export type FilterParams = [string, string][];
 
-async function request<T>(path: string, params?: FilterParams): Promise<T> {
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function isNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+function isString(v: unknown): v is string {
+  return typeof v === "string";
+}
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(isString);
+}
+
+type Validator<T> = (data: unknown) => data is T;
+
+const validators = {
+  meta: (d: unknown): d is MetaResponse =>
+    isObject(d) &&
+    isNumber(d.document_count) &&
+    isObject(d.schema) &&
+    isStringArray(d.schema.fields) &&
+    isObject(d.schema.populated),
+
+  facets: (d: unknown): d is FacetsResponse => {
+    if (!isObject(d)) return false;
+    for (const key of ["topic", "sector", "region", "country", "pestle", "source", "end_year", "start_year"] as const) {
+      const dim = d[key];
+      if (!isObject(dim) || !Array.isArray(dim.values) || !isNumber(dim.missing_count)) return false;
+    }
+    return true;
+  },
+
+  overview: (d: unknown): d is OverviewResponse => {
+    if (!isObject(d)) return false;
+    const s = d.summary;
+    if (!isObject(s) || !isNumber(s.filtered_count)) return false;
+    const dc = d.data_coverage;
+    if (!isObject(dc) || !Array.isArray(dc.values)) return false;
+    return true;
+  },
+
+  records: (d: unknown): d is RecordsPage =>
+    isObject(d) &&
+    Array.isArray(d.items) &&
+    isNumber(d.total) &&
+    isNumber(d.page) &&
+    isNumber(d.page_size) &&
+    isNumber(d.total_pages),
+
+  record: (d: unknown): d is RecordItem =>
+    isObject(d) &&
+    isString(d.id) &&
+    isNumber(d.source_row_index),
+
+  ready: (d: unknown): d is ReadyResponse =>
+    isObject(d) &&
+    isString(d.status) &&
+    isString(d.database) &&
+    isString(d.dataset) &&
+    isNumber(d.document_count),
+
+  health: (d: unknown): d is HealthResponse =>
+    isObject(d) && isString(d.status),
+} as const;
+
+async function request<T>(
+  path: string,
+  params?: FilterParams,
+  validator?: Validator<T>,
+): Promise<T> {
   const query = params?.length
     ? `?${params.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&")}`
     : "";
@@ -248,15 +319,24 @@ async function request<T>(path: string, params?: FilterParams): Promise<T> {
     }
     throw new ApiError(response.status, code, message);
   }
-  return (await response.json()) as T;
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError(response.status, "validation_error", "The data service returned invalid JSON.");
+  }
+  if (validator && !validator(data)) {
+    throw new ApiError(response.status, "validation_error", "The data service returned an unexpected response shape.");
+  }
+  return data as T;
 }
 
 export const api = {
-  health: () => request<HealthResponse>("/health"),
-  ready: () => request<ReadyResponse>("/ready"),
-  meta: () => request<MetaResponse>("/meta"),
-  facets: (params: FilterParams) => request<FacetsResponse>("/facets", params),
-  overview: (params: FilterParams) => request<OverviewResponse>("/overview", params),
+  health: () => request<HealthResponse>("/health", undefined, validators.health),
+  ready: () => request<ReadyResponse>("/ready", undefined, validators.ready),
+  meta: () => request<MetaResponse>("/meta", undefined, validators.meta),
+  facets: (params: FilterParams) => request<FacetsResponse>("/facets", params, validators.facets),
+  overview: (params: FilterParams) => request<OverviewResponse>("/overview", params, validators.overview),
   records: (
     params: FilterParams,
     pagination?: { page?: number; pageSize?: number; sort?: string; order?: string },
@@ -268,7 +348,7 @@ export const api = {
       if (pagination.sort) all.push(["sort", pagination.sort]);
       if (pagination.order) all.push(["order", pagination.order]);
     }
-    return request<RecordsPage>("/records", all);
+    return request<RecordsPage>("/records", all, validators.records);
   },
-  record: (id: string) => request<RecordItem>(`/records/${encodeURIComponent(id)}`),
+  record: (id: string) => request<RecordItem>(`/records/${encodeURIComponent(id)}`, undefined, validators.record),
 };

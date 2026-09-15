@@ -84,7 +84,7 @@ function rankRows<T extends Facetish>(
  * Production visualization shell: every section below is a real D3-backed
  * chart driven by the single filtered overview payload. Chart clicks toggle
  * values through the shared URL filter helpers — charts never own filter
- * state. The Records Explorer stays a designed placeholder for Phase 5.
+ * state. The Records Explorer renders a complete paginated table with detail panel.
  */
 export function VisualizationSections({
   overview,
@@ -149,7 +149,7 @@ export function VisualizationSections({
   // Compute full dataset coverage from meta
   const fullCoverage: FullCoverageDatum[] = useMemo(() => {
     const populated = meta?.schema?.populated;
-    const documentCount = meta?.schema?.document_count;
+    const documentCount = meta?.document_count;
     if (!populated || !documentCount) return [];
     const total = documentCount;
     return Object.entries(populated as Record<string, number>).map(([field, populated]) => ({
@@ -158,7 +158,7 @@ export function VisualizationSections({
       total_count: total,
       populated_percentage: total > 0 ? round(populated / total * 100, 2) : 0,
     }));
-  }, [meta?.schema?.populated, meta?.schema?.document_count]);
+  }, [meta?.schema?.populated, meta?.document_count]);
 
   const topics = overview?.topics.values ?? [];
   const countries = overview?.countries.values ?? [];

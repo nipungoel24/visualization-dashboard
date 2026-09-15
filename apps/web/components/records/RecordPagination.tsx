@@ -45,6 +45,7 @@ export function RecordPagination({
             disabled={!canPrev}
             aria-label="Previous page"
             onClick={() => onChangePage(page - 1)}
+            className="h-10 w-10 sm:h-8 sm:w-8"
           >
             <ChevronLeft size={14} strokeWidth={1.75} aria-hidden="true" />
           </Button>
@@ -55,6 +56,7 @@ export function RecordPagination({
             disabled={!canNext}
             aria-label="Next page"
             onClick={() => onChangePage(page + 1)}
+            className="h-10 w-10 sm:h-8 sm:w-8"
           >
             <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />
           </Button>

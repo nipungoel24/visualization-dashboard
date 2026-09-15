@@ -116,13 +116,9 @@ pnpm test:e2e:headed
 The E2E orchestration:
 1. Verifies ports 3001 and 8000 are free
 2. Starts MongoDB via Docker Compose and waits for healthy
-3. Seeds the database (validates SHA-256, imports 1,000 records)
-4. Builds the production frontend
-5. Starts FastAPI on port 8000
-6. Waits for `/api/v1/ready`
-7. Starts Next.js production server on port 3001
-8. Runs Playwright tests against real stack
-9. Cleans up all child processes on exit
+3. Seeds the database (validates SHA-256, imports 1,000 records into `insightscope_e2e`)
+4. Builds the production frontend (with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`)
+5. Runs Playwright tests — Playwright owns the FastAPI and Next.js lifecycle via `webServer` config
 
 ## 8. Troubleshooting
 
@@ -163,8 +159,8 @@ docker-compose.yml  Local MongoDB (mongo:8.0, named volume, healthcheck)
 ## Testing overview
 
 - **Backend**: 113 tests (61 unit, 52 integration with MongoDB); 0 failures
-- **Frontend**: 105 Vitest unit/component tests; 0 failures
-- **E2E**: Playwright tests against real stack; zero console errors, zero axe critical/serious violations
+- **Frontend**: 151 Vitest unit/component tests; 0 failures
+- **E2E**: 94 Playwright tests (smoke, records, accessibility, security, a11y audit); zero console errors, zero axe critical/serious violations
 
 ## Security notes
 

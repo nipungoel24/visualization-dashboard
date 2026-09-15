@@ -21,7 +21,7 @@ export default defineConfig({
       env: {
         ...process.env,
         MONGODB_URI: "mongodb://localhost:27017",
-        MONGODB_DB: "insightscope",
+        MONGODB_DB: "insightscope_e2e",
         ALLOWED_ORIGINS: "http://localhost:3001",
       },
       url: "http://127.0.0.1:8000/api/v1/health",

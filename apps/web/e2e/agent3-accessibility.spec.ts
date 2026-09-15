@@ -24,7 +24,7 @@ test.describe("agent3: non-chart accessibility", () => {
 
       const filterTrigger = page.getByRole("button", { name: "Filter by Topic" });
       await filterTrigger.click();
-      const option = page.getByRole("option", { name: /oil/ }).first();
+      const option = page.locator('[data-radix-popper-content-wrapper]').getByRole("option", { name: /oil/ }).first();
       await option.click();
       await expect(filterTrigger).toHaveText(/1 selected/);
     });
