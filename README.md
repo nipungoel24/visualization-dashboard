@@ -1,19 +1,39 @@
 # InsightScope — Global Intelligence Dashboard
 
-`blackcoffer-visualization-dashboard`
-
-InsightScope is a data intelligence dashboard that visualizes the supplied `jsondata.json`
-dataset (1,000 records) through a strict data pipeline:
+A data intelligence dashboard that visualizes 1,000 global intelligence records through a strict data pipeline:
 
 ```
-jsondata.json -> validation/normalization -> MongoDB -> FastAPI -> Next.js -> D3 visualizations
+jsondata.json → validation/normalization → MongoDB → FastAPI → Next.js → D3 visualizations
 ```
 
-The browser never loads the raw JSON; after seeding, all dashboard data comes from the backend
-API backed by MongoDB.
+The browser never loads the raw JSON. All dashboard data comes from the backend API backed by MongoDB.
 
-**Project control files** (read these first): `PRD.md`, `Architecture.md`, `Rules.md`,
-`Phases.md`, `Design.md`. Current execution state: `Memory.md`.
+---
+
+## Screenshots
+
+### Desktop (1440x900)
+
+![Dashboard — Desktop](docs/screenshots/desktop-1440x900-dashboard.png)
+
+### Filtered View — Topic: "oil"
+
+![Dashboard — Filtered](docs/screenshots/desktop-1440x900-filtered-oil.png)
+
+### Mobile (390x844)
+
+![Dashboard — Mobile](docs/screenshots/mobile-390x844-dashboard.png)
+
+### More screenshots
+
+- [Tablet 1024x768](docs/screenshots/tablet-1024x768-dashboard.png)
+- [Tablet — Filtered](docs/screenshots/tablet-1024x768-filtered-oil.png)
+- [Mobile — Filtered](docs/screenshots/mobile-390x844-filtered-oil.png)
+
+---
+
+**Project control files**: `PRD.md`, `Architecture.md`, `Rules.md`, `Phases.md`, `Design.md`.
+Current execution state: `Memory.md`.
 
 ## Prerequisites
 

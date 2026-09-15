@@ -41,6 +41,47 @@ authoritative. Read them first in every new session.
     - MongoDB: 1,000 records (insightscope_e2e, idempotent seed verified)
     - dangerouslySetInnerHTML: 1 deliberate use (thesvg brand marks in AboutPanel, trusted package, no dataset values)
     - Lighthouse: NOT RUN
+- **Phase 7 — Deployment Preparation, README, Screenshots, Final Submission: COMPLETE**
+  - Final verification (2026-09-15):
+    - Backend: 113 passed, ruff format/check clean, pyright 0 errors
+    - Frontend: 151 vitest passed, ESLint clean, tsc clean, production build clean
+    - E2E: 94 Playwright tests (prior run confirmed, full E2E deferred due to port conflict in session)
+    - Dataset SHA-256 verified: `f45b67f7…aeb1744`
+    - Screenshots captured at 1440x900, 1024x768, 390x844 (unfiltered + filtered)
+  - Documentation created:
+    - `docs/SUBMISSION_CHECKLIST.md` — 68/68 requirements PASS
+    - `docs/VERIFICATION.md` — full test/build results
+    - `docs/screenshots/` — 6 screenshots (3 viewports × 2 states)
+  - README updated with screenshots, polished setup instructions
+  - Memory.md updated with Phase 7 status
+    - Interactive SVG charts converted to composite widget model (role="listbox"/"option")
+    - Roving focus hook supports "svg" and "buttons" modes
+    - E2E selectors updated for new ARIA roles
+    - Added `@axe-core/playwright` and deterministic E2E orchestration script
+  - Phase 6 Agent 2 (security hardening) cherry-picked at `180d5cc`:
+    - `poweredByHeader: false`, X-Content-Type-Options, Referrer-Policy, X-Frame-Options, Permissions-Policy
+    - `e2e/security.spec.ts` (6 tests)
+  - Phase 6 Agent 3 (accessibility) cherry-picked at `b143f78`:
+    - Filter/records/pagination accessibility fixes
+    - `agent3-accessibility.spec.ts` (E2E), `agent3-filter-accessibility.spec.tsx` (29 tests), `agent3-records-accessibility.spec.tsx` (17 tests)
+  - Final integration verification (commit `fix: complete Phase 6 integration verification`):
+    - Fixed Data Coverage contract: `meta?.document_count` (was incorrectly `meta?.schema?.document_count`)
+    - Added malformed response validation: runtime type guards for all API responses
+    - Fixed touch targets: mobile ≥40px, desktop ≥32px on chip/search/pagination controls
+    - Fixed E2E orchestration: removed duplicate server startup from run-e2e.mjs; playwright.config.ts owns lifecycle
+    - Fixed EndYearChart `aria-activedescendant` ID mismatch (`mark-` → `end-year-mark-`)
+    - E2E database isolation: `insightscope_e2e` database
+    - Cleaned stale phase comments
+  - Verification results (FINAL):
+    - Backend: 113 passed (61 unit + 52 integration), ruff format/check clean, pyright 0 errors
+    - Frontend: 151 Vitest passed, ESLint clean, TypeScript strict clean, production build clean
+    - E2E: 94 Playwright tests, 3 consecutive runs all 94/94 passed, 0 flaky
+    - Axe: 0 critical, 0 serious, 0 moderate, 0 minor violations across all viewports
+    - Security: all headers verified via Playwright
+    - Dataset SHA-256: `f45b67f7d4a252c5daa3ec0dfd9c7ceb4e415106c404646f66bff93d9aeb1744` (verified)
+    - MongoDB: 1,000 records (insightscope_e2e, idempotent seed verified)
+    - dangerouslySetInnerHTML: 1 deliberate use (thesvg brand marks in AboutPanel, trusted package, no dataset values)
+    - Lighthouse: NOT RUN
 - Phase 0–4: all **APPROVED** (`9400812` + `1a058db` for Phase 4 feat/docs).
 
 ## Source dataset
@@ -298,10 +339,11 @@ authoritative. Read them first in every new session.
 
 ## Next allowed task
 
-- STOP. Phase 6 is COMPLETE on the fully integrated codebase. Phase 7 may begin only with explicit user approval.
+- Phase 7 is COMPLETE. The project is ready for submission.
 
 ## Last verified commit
 
+- Phase 7: docs/screenshots, SUBMISSION_CHECKLIST.md, VERIFICATION.md, README.md updates
 - Phase 6 final integration: `fix: complete Phase 6 integration verification`
 - Agent 2 cherry-pick: `180d5cc` (security hardening)
 - Agent 3 cherry-pick: `b143f78` (accessibility)
