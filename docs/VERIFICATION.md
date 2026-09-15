@@ -3,7 +3,11 @@
 Final verification results for Phase 7 submission readiness.
 
 **Date**: 2026-09-15
-**Commit**: `90ef0f8` (main)
+
+**Commits**:
+- Code-under-test / Phase 6 integration: `90ef0f8ad362618912dee483501e4b7203783b61`
+- Phase 7 packaging (screenshots, docs): `1c06d74df2275867918d1e978056912db25c6541`
+- Phase 7 closeout (verification corrections): see final commit below
 
 ---
 
@@ -59,12 +63,14 @@ Final verification results for Phase 7 submission readiness.
 | charts.spec.tsx | 12 | PASS |
 | **Total** | **151** | **ALL PASS** |
 
-## E2E Verification (Playwright)
+## E2E Verification (Playwright) — Phase 7 Final Run
 
 | Check | Result |
 |-------|--------|
 | `pnpm test:e2e` | 94/94 passed — PASS |
-| Consecutive runs | 3/3 green, 0 flaky |
+| Duration | 1.1 minutes |
+| Failures | 0 |
+| Skipped | 0 |
 | Console errors | 0 captured |
 | axe-core violations | 0 critical, 0 serious |
 
@@ -100,12 +106,12 @@ Final verification results for Phase 7 submission readiness.
 
 | Viewport | File | Size |
 |----------|------|------|
-| 1440x900 (desktop) | `desktop-1440x900-dashboard.png` | 66 KB |
-| 1440x900 (filtered) | `desktop-1440x900-filtered-oil.png` | 70 KB |
-| 1024x768 (tablet) | `tablet-1024x768-dashboard.png` | 60 KB |
-| 1024x768 (filtered) | `tablet-1024x768-filtered-oil.png` | 63 KB |
-| 390x844 (mobile) | `mobile-390x844-dashboard.png` | 28 KB |
-| 390x844 (filtered) | `mobile-390x844-filtered-oil.png` | 31 KB |
+| 1440x900 (desktop) | `desktop-1440x900-dashboard.png` | 644 KB |
+| 1440x900 (filtered) | `desktop-1440x900-filtered-oil.png` | 534 KB |
+| 1024x768 (tablet) | `tablet-1024x768-dashboard.png` | 504 KB |
+| 1024x768 (filtered) | `tablet-1024x768-filtered-oil.png` | 441 KB |
+| 390x844 (mobile) | `mobile-390x844-dashboard.png` | 526 KB |
+| 390x844 (filtered) | `mobile-390x844-filtered-oil.png` | 451 KB |
 
 ## Summary
 

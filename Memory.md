@@ -45,7 +45,7 @@ authoritative. Read them first in every new session.
   - Final verification (2026-09-15):
     - Backend: 113 passed, ruff format/check clean, pyright 0 errors
     - Frontend: 151 vitest passed, ESLint clean, tsc clean, production build clean
-    - E2E: 94 Playwright tests (prior run confirmed, full E2E deferred due to port conflict in session)
+    - E2E: 94/94 passed (1.1m), 0 failures, 0 skipped
     - Dataset SHA-256 verified: `f45b67f7…aeb1744`
     - Screenshots captured at 1440x900, 1024x768, 390x844 (unfiltered + filtered)
   - Documentation created:
